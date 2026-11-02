@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>GESCOUNT</title>
 <script>/* version web : réglages Supabase dans config.js (à côté de index.html). Programme PC : fournis par le programme. */if(!window.api)document.write('<script src="config.js"><\/script>')</script>
-<meta name="gc-version" content="5">
+<meta name="gc-version" content="6">
 <style>
 /* Layout (repris de GESTIME) : bandeau blanc [icône + titre + magasin ⌂] [logo] [⚙], rangée de 4 grands onglets verts, sélecteur de période, puis cartes coiffées d'un bandeau rouge. */
 :root{
@@ -437,6 +437,12 @@ table.imp input[type=month]{width:130px}
 .h4{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
 .pin{width:100%;padding:3px 6px}
 .rlbl{font-size:12px;color:var(--muted);margin:10px 0 4px}
+.dosl{display:flex;align-items:center;gap:6px;margin:-4px 0 10px;padding:6px 8px;background:var(--sunk);border-radius:8px}
+.dosp{flex:1;min-width:0;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dosm{border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:6px;padding:3px 8px;font:700 11px var(--body);cursor:pointer}
+.dosm[aria-pressed="true"]{background:var(--green);border-color:var(--green);color:var(--on-green)}
+.dosx{border:0;background:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px 4px}
+.dosx:hover{color:var(--red-2)}
 .rnote{font-size:11.5px;color:var(--muted);margin:4px 0 6px;line-height:1.4}
 .rtheme.r4{grid-template-columns:repeat(4,1fr)}
 .row .sp,.periode .sp{flex:1}
@@ -504,7 +510,7 @@ details.note summary{cursor:pointer;font-weight:700}
    - verrouillage automatique après quelques minutes sans activité (des employés utilisent le PC) ;
    - données du PC chiffrées (AES-GCM, clé tirée du mot de passe) : illisibles sans le mot de passe.
    ===================================================================== */
-const APP="GESCOUNT",APP_VERSION=5,TABLE="gescount",LSP="gescount.";
+const APP="GESCOUNT",APP_VERSION=6,TABLE="gescount",LSP="gescount.";
 const MOIS=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
 const MC=["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
 const MAGS=[{id:"bredis",nom:"BREDIS"},{id:"clamart",nom:"CLAMART"}];
@@ -1152,6 +1158,9 @@ function dosHtml(k){const P=dosReg(k)||{},D0=DOS[k],J=dosJournal().filter(j=>j.t
     <div style="margin-top:8px">${esc(D0.msg||"")}${D0.last?` <span class="small muted">(${D0.last.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})})</span>`:""}</div>
     ${J.length?`<div class="rlbl">Derniers fichiers lus :</div>${J.map(j=>`<div class="small">${frDate(j.le.slice(0,10))} · ${esc(storeNom(j.magasin))} · ${esc(j.fichier)} · ${esc(j.txt)}</div>`).join("")}`:""}`:""}
   </div>`}
+// v6 : sous le bouton, une seule ligne : dossier choisi, magasin (BREDIS / CLAMART), ✕ pour arrêter. Le clic sur le bouton ouvre directement le choix du dossier.
+function dosLigne(k){const P=dosReg(k);if(!P||!P.dossier)return"";const D0=DOS[k];
+  return `<div class="dosl"><span class="dosp" title="${esc(P.dossier)}">📁 ${esc(P.dossier.split(/[\\/]/).filter(Boolean).slice(-2).join(" › "))}</span>${MAGS.map(m=>`<button class="dosm" data-dosmag="${m.id}" data-k="${k}" aria-pressed="${P.magasin===m.id}">${m.nom}</button>`).join("")}<button class="dosx" data-dosact="stop" data-k="${k}" title="Arrêter la lecture de ce dossier" aria-label="Arrêter">✕</button></div>${/⚠️/.test(D0.msg||"")?`<div class="small neg" style="margin:-4px 0 8px">${esc(D0.msg)}</div>`:""}`}
 function dosBandeau(k){const P=dosReg(k);if(!PC||!P||!P.dossier||!P.magasin)return"";
   return `<div class="note">🔄 Lecture automatique des ${DOS[k].nom} sur ce PC : <b>${esc(P.dossier)}</b> → ${esc(storeNom(P.magasin))}. ${esc(DOS[k].msg||"")}</div>`}
 
@@ -1199,10 +1208,10 @@ function renderModal(){const root=$("#modalRoot");if(!S.modal||S.locked){root.in
     <div class="rtheme"><button data-postedem="1" aria-pressed="${!!S.poste.demarrage}">Oui</button><button data-postedem="0" aria-pressed="${!S.poste.demarrage}">Non</button></div>
     <div class="rlbl">Connexion automatique au démarrage</div>
     <div class="rtheme"><button data-posteauto="1" aria-pressed="${!!S.poste.connexionAuto}">Oui</button><button data-posteauto="0" aria-pressed="${!S.poste.connexionAuto}">Non</button></div>
-    <button class="rbtn" data-panel="releves" style="margin-top:10px"><span class="ic">🏦</span>Dossier des relevés bancaires</button>
-    ${P1==="releves"?dosHtml("releves"):""}
-    <button class="rbtn" data-panel="bulletins"><span class="ic">📄</span>Dossier des bulletins de paie</button>
-    ${P1==="bulletins"?dosHtml("bulletins"):""}`:""}
+    <button class="rbtn" data-dosact="choisir" data-k="releves" style="margin-top:10px"><span class="ic">🏦</span>Dossier des relevés bancaires</button>
+    ${dosLigne("releves")}
+    <button class="rbtn" data-dosact="choisir" data-k="bulletins"><span class="ic">📄</span>Dossier des bulletins de paie</button>
+    ${dosLigne("bulletins")}`:""}
     <h4>Données</h4>
     <button class="rbtn" data-act="export"><span class="ic">💾</span>Exporter</button>
     <button class="rbtn" data-act="import"><span class="ic">📂</span>Importer</button><input type="file" id="importFile" accept="application/json,.json" hidden>
@@ -1238,7 +1247,7 @@ document.addEventListener("click",async e=>{
     S.poste=await window.api.posteGet();renderModal();return}
   if(ds.dosmag){await window.api.dossierSet(ds.k,{magasin:ds.dosmag});S.poste=await window.api.posteGet();renderModal();dosAuto(ds.k);return}
   if(ds.dosact){const k=ds.k;
-    if(ds.dosact==="choisir"){const v=await window.api.dossierChoisir(k);if(v){S.poste=await window.api.posteGet();renderModal();dosAuto(k)}}
+    if(ds.dosact==="choisir"){const v=await window.api.dossierChoisir(k);if(v){if(!v.magasin)await window.api.dossierSet(k,{magasin:S.store});S.poste=await window.api.posteGet();renderModal();dosAuto(k)}}
     else if(ds.dosact==="lire")dosAuto(k);
     else if(ds.dosact==="stop"&&await askConfirm("Arrêter la lecture automatique des "+DOS[k].nom+" sur ce PC ?\nCe qui a déjà été importé reste dans GESCOUNT.","Arrêter")){await window.api.dossierSet(k,null);S.poste=await window.api.posteGet();DOS[k].msg="";renderModal()}
     return}
