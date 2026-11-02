@@ -1,0 +1,4 @@
+node_modules/
+dist/
+pc/index.html
+pc/seed.json

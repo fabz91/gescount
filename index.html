@@ -1,0 +1,1274 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>GESCOUNT</title>
+<script>/* version web : réglages Supabase dans config.js (à côté de index.html). Programme PC : fournis par le programme. */if(!window.api)document.write('<script src="config.js"><\/script>')</script>
+<meta name="gc-version" content="1">
+<style>
+/* Layout (repris de GESTIME) : bandeau blanc [icône + titre + magasin ⌂] [logo] [⚙], rangée de 4 grands onglets verts, sélecteur de période, puis cartes coiffées d'un bandeau rouge. */
+:root{
+  --bg:#eef1ed; --surface:#ffffff; --sunk:#f1f4f0; --line:#d6ddd5; --fg:#18231b; --muted:#5d6b60;
+  --green:#17613a; --green-2:#23824d; --green-soft:#e2f0e6; --on-green:#ffffff;
+  --red:#c4161c; --red-2:#e2342b; --red-soft:#fbe5e3; --on-red:#ffffff;
+  --accent:var(--green); --accent-soft:var(--green-soft); --accent-fg:var(--on-green);
+  --warn:#9a5b00; --warn-soft:#fbefd9; --bad:#b3261e; --bad-soft:#fbe4e1; --good:#17613a; --good-soft:#e2f0e6; --info:#2d5a8a; --info-soft:#e2ebf5;
+  --bar-empty:#dfe5dd; --n1:#e7a3a0; --hdr:#ffffff; --tab-on:#3cb44b; --teal:#2fa89e; --on-teal:#ffffff; --panel:#ffffff; --logo-bg:transparent; --logo-pad:0; --shadow:0 1px 2px rgba(20,40,25,.08),0 2px 8px rgba(20,40,25,.05);
+  --display:system-ui,-apple-system,"Segoe UI",sans-serif; --body:system-ui,-apple-system,"Segoe UI",sans-serif; /* police de Windows, comme GESTIME */
+  --r:8px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#2a2e32; --surface:#33383c; --sunk:#3b4045; --line:#4a5055; --fg:#eef0f1; --muted:#a8b0b5;
+  --green:#36a84a; --green-2:#45c05a; --green-soft:#2c3f31; --on-green:#ffffff;
+  --hdr:#1f2326; --tab-on:#3cb44b; --teal:#5fd0c6; --on-teal:#10302d; --panel:#3a3f44;
+  --red:#b8191f; --red-2:#d6322a; --red-soft:#3d1d1c; --on-red:#ffffff;
+  --warn:#f0b65a; --warn-soft:#3a2e17; --bad:#f08a80; --bad-soft:#3d1f1c; --good:#5cc28d; --good-soft:#1c3325; --info:#8db7e6; --info-soft:#1d2a3a;
+  --bar-empty:#2b332d; --n1:#8a4441; --logo-bg:#ffffff; --logo-pad:4px 8px; --shadow:none; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#2a2e32; --surface:#33383c; --sunk:#3b4045; --line:#4a5055; --fg:#eef0f1; --muted:#a8b0b5;
+  --green:#36a84a; --green-2:#45c05a; --green-soft:#2c3f31; --on-green:#ffffff;
+  --hdr:#1f2326; --tab-on:#3cb44b; --teal:#5fd0c6; --on-teal:#10302d; --panel:#3a3f44;
+  --red:#b8191f; --red-2:#d6322a; --red-soft:#3d1d1c; --on-red:#ffffff;
+  --warn:#f0b65a; --warn-soft:#3a2e17; --bad:#f08a80; --bad-soft:#3d1f1c; --good:#5cc28d; --good-soft:#1c3325; --info:#8db7e6; --info-soft:#1d2a3a;
+  --bar-empty:#2b332d; --n1:#8a4441; --logo-bg:#ffffff; --logo-pad:4px 8px; --shadow:none; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:14px;line-height:1.45}
+.wrap{max-width:1280px;margin:0 auto;padding-inline:16px;padding-block:20px 48px}
+.wrap.wide{max-width:none;padding-inline:12px}
+.wrap.wide .sub{max-width:none}
+.sheet-scroll{max-height:none;min-height:0;overflow:visible} /* v38 : plus de barre de défilement dans la saisie : toute la page défile */
+
+/* ---- bandeau du haut (repris de GESTIME) ---- */
+header.top{background:var(--hdr)}
+.bar{max-width:1280px;margin:0 auto;padding:12px 16px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px}
+.ident{display:flex;align-items:center;gap:12px;min-width:0}
+.appico{flex:none;width:46px;height:46px;border-radius:11px;display:grid;place-items:center;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+.appico svg{width:100%;height:100%;display:block}
+.apptitle{font-family:var(--display);font-weight:900;font-size:27px;line-height:1;letter-spacing:.02em;color:var(--fg)}
+.apptitle b{color:var(--red-2)}
+.store{display:flex;align-items:center;gap:8px;margin-top:5px;font-family:var(--display);font-weight:700;font-size:14px;letter-spacing:.24em;color:var(--muted);text-transform:uppercase;white-space:nowrap}
+.house{border:1px solid var(--line);background:var(--surface);color:var(--fg);width:26px;height:26px;display:grid;place-items:center;cursor:pointer;padding:0;border-radius:8px} /* v32 : petite case autour de la maison, comme GESTIME */
+.house svg{width:16px;height:16px}
+.logo{justify-self:center;display:flex;align-items:center;min-height:46px}
+.logo img{max-height:46px;max-width:120px;display:block;background:var(--logo-bg);border-radius:6px;padding:var(--logo-pad)}
+.logo .ph{border:1.5px dashed var(--line);color:var(--muted);background:none;border-radius:8px;padding:8px 12px;font:600 12px var(--body);cursor:pointer}
+.tools{justify-self:end;display:flex;gap:8px}
+.ibtn{width:34px;height:34px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer;display:grid;place-items:center;padding:0}
+.ibtn svg{width:17px;height:17px}
+.ibtn:disabled{opacity:.35;cursor:default}
+.ibtn:not(:disabled):hover,.house:hover{color:var(--green-2);border-color:var(--green-2)}
+.stripe{height:5px;background:linear-gradient(var(--green) 0 2px,transparent 2px 3px,var(--red-2) 3px 5px)}
+.menu{position:absolute;z-index:30;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:0 8px 24px rgba(0,0,0,.25);padding:6px;min-width:200px}
+.menu button{display:flex;width:100%;align-items:center;gap:8px;border:0;background:none;color:var(--fg);font:600 14px var(--body);padding:8px 10px;border-radius:6px;cursor:pointer;text-align:left}
+.menu button:hover{background:var(--sunk)}
+.menu button[aria-current="true"]{background:var(--green-soft);color:var(--green-2)}
+nav.tabs{max-width:1280px;margin:0 auto;padding:16px 16px 4px;display:flex;justify-content:center;flex-wrap:wrap;gap:10px}
+nav.tabs button{font:800 13px var(--display);letter-spacing:.05em;text-transform:uppercase;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 20px;cursor:pointer;white-space:nowrap;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+nav.tabs button:hover{border-color:var(--tab-on)}
+nav.tabs button[aria-selected="true"]{background:var(--tab-on);border-color:var(--tab-on);color:#fff;box-shadow:0 2px 8px rgba(60,180,75,.35)}
+.avlate{display:inline-flex;vertical-align:-3px;margin-left:5px}.avlate[hidden]{display:none}.avlate svg.warn{width:17px;height:17px;display:block} /* v45 */
+nav.tabs .cnt.blink{animation:updBlink 1s ease-in-out infinite}
+nav.tabs .cnt{display:inline-block;min-width:18px;padding:0 5px;margin-left:6px;border-radius:9px;background:var(--red-2);color:var(--on-red);font-size:11px;letter-spacing:0}
+@media (max-width:640px){
+  .bar{grid-template-columns:1fr auto}
+  .logo{grid-column:1/-1;grid-row:2;justify-self:center;min-height:0}
+  .apptitle{font-size:23px}
+  nav.tabs button{padding:8px 12px;font-size:12px}
+}
+
+/* ---- période ---- */
+.periode{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:0 0 14px}
+.periode .nav{width:34px;height:34px;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:6px;cursor:pointer;font-size:16px}
+.periode select,.periode input{height:34px}
+.periode input{width:80px}
+.periode .sp{flex:1}
+
+/* ---- cartes à bandeau rouge ---- */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;min-width:0;box-shadow:var(--shadow)}
+.panel.flush{padding:0;overflow:hidden}
+.band{background:linear-gradient(180deg,var(--red-2),var(--red));color:var(--on-red);font-family:var(--display);font-weight:800;font-size:14px;letter-spacing:.12em;text-transform:uppercase;padding:9px 14px;display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;text-align:center}
+.panel>.band{margin:-16px -16px 14px;border-radius:var(--r) var(--r) 0 0}
+.panel.flush>.band{margin:0}
+.band .pillbtn{font:700 12px var(--body);letter-spacing:0;text-transform:none;color:var(--on-red);background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.7);border-radius:14px;padding:3px 12px;cursor:pointer}
+.band .pillbtn:hover{background:rgba(255,255,255,.28)}
+
+h2{font-family:var(--display);font-weight:800;font-size:22px;margin:0 0 4px;text-wrap:balance}
+.sub{color:var(--muted);margin:0 0 16px;max-width:75ch}
+.lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.grid{display:grid;gap:16px}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(175px,1fr))}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;display:flex;flex-direction:column;gap:2px;box-shadow:var(--shadow)}
+.kpi .v{font-family:var(--display);font-weight:800;font-size:24px;font-variant-numeric:tabular-nums}
+.kpi.hl .v{color:var(--green)}
+.kpi.alert .v{color:var(--red)}
+.kpi .d{font-size:12px;color:var(--muted)}
+.two{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)}
+@media (max-width:860px){.two{grid-template-columns:minmax(0,1fr)}}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);background:var(--surface);position:sticky;top:0}
+td.l,th.l{text-align:left}
+tr.tot td{font-weight:800;border-top:2px solid var(--fg);border-bottom:0}
+tr.muted td{color:var(--muted)}
+.pos{color:var(--good)} .neg{color:var(--bad)}
+.pill{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;font-weight:700;white-space:nowrap}
+.s-a_reclamer{background:var(--warn-soft);color:var(--warn)}
+.s-declare{background:var(--warn-soft);color:var(--warn)}
+.s-reclame,.s-relance{background:var(--info-soft);color:var(--info)}
+.s-accepte,.s-deduit{background:var(--good-soft);color:var(--good)}
+.s-refuse{background:var(--bad-soft);color:var(--bad)}
+.late{color:var(--bad);font-weight:700}
+button.btn,.btn{font:700 13px var(--body);border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:6px;padding:7px 12px;cursor:pointer}
+.btn.primary{background:var(--green);border-color:var(--green);color:var(--on-green)}
+.btn.red{background:var(--red);border-color:var(--red);color:var(--on-red)}
+.btn.small{padding:3px 8px;font-size:12px}
+.btn.danger{color:var(--bad);border-color:var(--bad)}
+.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,nav.tabs button:focus-visible,.gear:focus-visible,.house:focus-visible,.band .pillbtn:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+input,select,textarea{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 8px;min-width:0}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+/* saisie */
+/* grille de saisie : colonnes toutes égales qui se partagent la largeur (elles rétrécissent quand on ajoute un fournisseur) */
+.sheet{table-layout:fixed;width:100%}
+.sheet td{padding:0;border-right:1px solid var(--line);height:32px;overflow:hidden}
+.sheet th{border-right:1px solid var(--line);overflow:hidden;text-overflow:ellipsis;padding:5px 4px;font-size:10.5px}
+.sheet th.day,.sheet td.day{width:78px;position:sticky;left:0;background:var(--surface);z-index:1;text-align:left;padding:4px 10px;font-weight:700}
+.sheet th.day{z-index:2}
+.sheet td.we{color:var(--red)}
+.sheet td.hasfac{position:relative}.sheet td.hasfac input{padding-right:20px}
+.facdoc{position:absolute;right:3px;top:50%;transform:translateY(-50%);width:13px;height:15px;padding:0;margin:0;border:0;background:none;color:var(--muted,#8a8f98);cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
+.facdoc:hover{color:var(--accent,#e0592a)}.facdoc svg{width:11px;height:13px}
+.sheet td input{display:block;width:100%;height:100%;min-width:0;box-sizing:border-box;border:0;border-radius:0;background:transparent;text-align:right;padding:6px 6px;font-variant-numeric:tabular-nums;font-size:13px}
+.sheet td input::placeholder{font-size:12px}
+/* sélection verte = exactement la case */
+.sheet td input:focus,.sheet td input:focus-visible{background:var(--green-soft);outline:2px solid var(--green-2);outline-offset:-2px}
+.sheet td.calc{padding:6px 6px;background:var(--sunk);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sheet tr.tot td{padding:7px 6px;background:var(--sunk);overflow:hidden;text-overflow:ellipsis}
+.sheet tr.tot td.day{padding:7px 10px}
+.sheet .ca input{font-weight:700}
+.fhead{display:flex;flex-direction:column;align-items:stretch;gap:3px;min-width:0}
+.fctl{display:flex;justify-content:space-between;align-items:center;gap:3px}
+.fmv{flex:none;width:20px;height:20px;border-radius:6px;border:1px solid var(--line);background:var(--sunk);color:var(--fg);font:900 13px/1 var(--body);cursor:pointer;padding:0;display:grid;place-items:center}
+.fmv:hover:not(:disabled),.fmv:focus-visible{background:var(--green-2);border-color:var(--green-2);color:#fff}
+.fmv:disabled{opacity:.3;cursor:default}
+.sheet input.fname{flex:1;min-width:0;width:100%;box-sizing:border-box;background:var(--sunk);border:1px solid var(--line);border-radius:6px;padding:5px 5px;font:800 10px var(--display);letter-spacing:.02em;text-transform:uppercase;color:var(--fg);text-align:left;text-overflow:ellipsis}
+.sheet input.fname:focus{border-color:var(--green-2);background:var(--surface);outline:none}
+.fx{flex:none;width:20px;height:20px;border-radius:6px;border:1px solid var(--line);background:var(--sunk);color:var(--red-2);font:900 11px/1 var(--body);cursor:pointer;padding:0;display:grid;place-items:center}
+.fx:hover,.fx:focus-visible{background:var(--red-2);border-color:var(--red-2);color:#fff}
+.rn{cursor:text;border-bottom:1px dashed transparent}
+.rn:hover{border-bottom-color:currentColor;color:var(--fg)}
+.rnin{width:120px;font:700 11px var(--body);text-transform:uppercase;padding:2px 4px}
+.colx{position:absolute;top:3px;right:3px;width:17px;height:17px;border-radius:50%;border:0;background:transparent;color:var(--muted);font:700 13px/17px var(--body);padding:0;cursor:pointer;opacity:.55}
+.colx:hover,.colx:focus-visible{opacity:1;background:var(--red-2);color:#fff}
+.hidden-cols{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:10px 14px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+.hidden-cols button{font:600 12px var(--body);border:1px dashed var(--line);background:none;color:var(--fg);border-radius:14px;padding:3px 10px;cursor:pointer}
+.hidden-cols button:hover{border-color:var(--green-2);color:var(--green-2)}
+.rchip{display:inline-flex;align-items:center;gap:3px}
+.hidden-cols button.rdel{border:1px solid var(--line);border-radius:6px;padding:0;width:20px;height:20px;display:grid;place-items:center;color:var(--red-2);font:900 11px/1 var(--body);background:var(--sunk)}
+.hidden-cols button.rdel:hover{background:var(--red-2);border-color:var(--red-2);color:#fff}
+.sheet td.gtot{background:var(--green-soft);font-weight:700}
+/* chart */
+svg text{fill:var(--muted);font:11px var(--body)}
+svg .vl{fill:var(--fg);font-weight:700}
+/* bars list */
+.hb{display:grid;grid-template-columns:120px minmax(0,1fr) 90px;gap:4px 8px;align-items:center;font-size:13px}
+.hb .tr{height:10px;background:var(--sunk);border-radius:2px;overflow:hidden}
+.hb .tr i{display:block;height:100%;background:var(--green)}
+.hb .n{text-align:right;font-variant-numeric:tabular-nums}
+.hb span.hsub{font-size:12px;color:var(--muted)} .hb span.hname{padding-left:14px}
+.hb .tr.hsub{height:6px} .hb .tr.hsub i{opacity:.55}
+/* avoirs */
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:16px;padding:5px 12px;font:700 13px var(--body);color:var(--fg);cursor:pointer;display:flex;gap:6px;align-items:baseline}
+.chip[aria-pressed="true"]{border-color:var(--green);background:var(--green);color:var(--on-green)}
+.chip[aria-pressed="true"] .c{color:var(--on-green)}
+.chip .c{color:var(--muted);font-weight:500;font-variant-numeric:tabular-nums}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px 12px}
+.form label{display:flex;flex-direction:column;gap:3px;font-size:12px;font-weight:700;color:var(--muted)}
+.form .wide{grid-column:1/-1}
+.hist{font-size:12px;color:var(--muted)}
+.empty-state{padding:32px 16px;text-align:center;color:var(--muted)}
+.note{background:var(--red-soft);color:var(--fg);border-radius:var(--r);padding:10px 12px;font-size:13px;border:1px solid var(--line)}
+.foot{font-size:12px;color:var(--muted);padding:8px 14px}
+/* réglages (repris de GESTIME) */
+.overlay{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.18)}
+.reglages{position:fixed;top:calc(64px + env(safe-area-inset-top,0px));right:max(16px,calc((100vw - 1280px)/2 + 16px));width:min(380px,calc(100vw - 32px));max-height:calc(100vh - 90px);overflow-y:auto;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:0 14px 40px rgba(0,0,0,.35);padding:16px 18px 18px;z-index:41}
+.reglages .head{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.reglages .head h3{margin:0;flex:1;font-family:var(--display);font-weight:800;font-size:24px;color:var(--fg);text-shadow:0 0 10px rgba(69,192,90,.45)}
+.reglages .cloud{color:var(--green-2);display:grid;place-items:center}
+.reglages .cloud svg{width:24px;height:24px}
+.reglages .x{border:0;background:none;color:var(--fg);font-size:26px;line-height:1;cursor:pointer;padding:2px 4px}
+.reglages h4{font-family:var(--display);font-weight:700;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--fg);margin:16px 0 8px;opacity:.85}
+.rbtn{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;margin-bottom:8px;border:1px solid var(--line);border-radius:10px;background:var(--sunk);font:700 16px var(--display);color:var(--fg);cursor:pointer;text-align:left}
+.rbtn:hover{border-color:var(--green-2)}
+.rbtn .ic{font-size:18px;width:22px;text-align:center}
+.ibtn.upd{position:relative}.ibtn.upd::after{content:"";position:absolute;top:-3px;right:-3px;width:10px;height:10px;border-radius:50%;background:var(--red-2);border:2px solid var(--hdr)}
+.rver{font-size:13px;font-weight:700;color:var(--muted);margin:-2px 0 4px 2px}
+.rtheme{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.rtheme button{padding:11px;border-radius:10px;border:1px solid var(--line);background:var(--sunk);color:var(--fg);font:700 16px var(--display);cursor:pointer}
+.rtheme button[aria-pressed="true"]{background:var(--teal);border-color:var(--teal);color:var(--on-teal)}
+.rinfo{background:var(--sunk);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13px;margin:-2px 0 10px;line-height:1.5}
+.reglages .row input,.reglages .row select{background:var(--surface)}
+.storelist{display:grid;gap:6px}
+#toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 14px;border-radius:var(--r);font-weight:700;font-size:13px;z-index:60}
+.gap{height:16px}
+@media (prefers-reduced-motion:no-preference){.hb .tr i{transition:width .3s}}
+
+/* ===== Uniformisation avec GESTIME (v17) : mêmes couleurs, même mode sombre, même bandeau, mêmes onglets, mêmes réglages ===== */
+:root{--bg:#f6f5f1;--sunk:#f6f5f1;--line:#e2e0d8;--fg:#1d2433;--muted:#6b7385;
+  --green:#237a3b;--green-2:#237a3b;--green-soft:#e2f0e4;--good:#237a3b;--good-soft:#e2f0e4;--red:#d3262b;--red-2:#d3262b;
+  --tab-on:#237a3b;--teal:#237a3b;--on-teal:#fff;--hdr:#ffffff;--panel:#ffffff;--logo-bg:#fff;--logo-pad:4px 8px}
+:root[data-theme="dark"]{--bg:#1f2022;--surface:#2a2b2e;--sunk:#252629;--line:#45474b;--fg:#f4f5f7;--muted:#b8bbc0;
+  --green:#3fbf3a;--green-2:#3fbf3a;--green-soft:#2d4a33;--good:#3fbf3a;--good-soft:#2d4a33;--red:#f0473d;--red-2:#f0473d;--bad:#ff7a72;
+  --tab-on:#3fbf3a;--teal:#3fbf3a;--on-teal:#fff;--hdr:#151617;--panel:#2a2b2e;--bar-empty:#303134}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1f2022;--surface:#2a2b2e;--sunk:#252629;--line:#45474b;--fg:#f4f5f7;--muted:#b8bbc0;
+  --green:#3fbf3a;--green-2:#3fbf3a;--green-soft:#2d4a33;--good:#3fbf3a;--good-soft:#2d4a33;--red:#f0473d;--red-2:#f0473d;--bad:#ff7a72;
+  --tab-on:#3fbf3a;--teal:#3fbf3a;--on-teal:#fff;--hdr:#151617;--panel:#2a2b2e;--bar-empty:#303134}}
+/* double filet fin : vert 2 px, fond 4 px, rouge 2 px (identique à GESTIME, v30) */
+.stripe{height:8px;background:linear-gradient(var(--green) 0 2px,var(--bg) 2px 6px,var(--red-2) 6px 8px)}
+/* logo G20 sur tuile blanche */
+.logo img{max-height:none;max-width:none;height:44px;width:auto;background:#fff;border-radius:8px;padding:4px 8px;box-shadow:0 0 0 1px rgba(0,0,0,.18)}
+@media (max-width:640px){.logo img{height:30px;padding:2px 5px}}
+/* onglets en MAJUSCULES, petits et centrés sous le bandeau */
+nav.tabs{padding:14px 16px 4px;gap:8px}
+nav.tabs button{font:700 14px var(--body);letter-spacing:.04em;min-width:132px;padding:7px 10px;border-radius:10px;box-shadow:none}
+nav.tabs button[aria-selected="true"]{box-shadow:none}
+:root[data-theme="dark"] nav.tabs button[aria-selected="true"]{color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5);box-shadow:0 0 10px rgba(63,191,58,.5)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) nav.tabs button[aria-selected="true"]{color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5);box-shadow:0 0 10px rgba(63,191,58,.5)}}
+:root[data-theme="dark"] nav.tabs button:not([aria-selected="true"]){background:#303134;border-color:#45474b;color:#fff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) nav.tabs button:not([aria-selected="true"]){background:#303134;border-color:#45474b;color:#fff}}
+@media (max-width:640px){nav.tabs button{min-width:0;width:calc(50% - 6px)}}
+/* fenêtre des réglages : même fenêtre que GESTIME (centrée, fond assombri) */
+.overlay{background:rgba(0,0,0,.5);z-index:40}
+.reglages{top:50%;left:50%;right:auto;transform:translate(-50%,-50%);width:min(380px,calc(100vw - 40px));max-height:calc(100vh - 40px);background:var(--surface);border-radius:14px;padding:18px;box-shadow:0 10px 40px rgba(0,0,0,.4)}
+.reglages .head{margin-bottom:2px}
+.reglages .head h3{font:700 19px var(--body);text-shadow:none}
+.reglages .x{border:1px solid var(--line);border-radius:8px;background:var(--surface);font-size:18px;line-height:1.2;padding:2px 10px}
+.reglages h4{font:400 12px var(--body);color:var(--muted);letter-spacing:.04em;text-transform:uppercase;margin:12px 0 8px;opacity:1}
+.rbtn{gap:8px;padding:10px 12px;border-radius:8px;background:var(--surface);font:400 15px var(--body)}
+.rbtn .ic{font-size:15px;width:auto}
+.rtheme{gap:8px}.rtheme button{padding:6px 12px;border-radius:8px;background:var(--surface);font:400 15px var(--body)}
+.rtheme button[aria-pressed="true"]{background:var(--green);border-color:var(--green);color:#fff}
+.rver{font-weight:400;font-size:12px}
+.rmaj{font-size:12px;color:var(--muted);margin:2px 0 4px 2px}
+.syi{display:inline-flex;align-items:center;line-height:0}
+.syi.ok{color:#237a3b}.syi.ko{color:#d3262b}.syi.wait{color:var(--muted)}
+:root[data-theme="dark"] .syi.ok{color:#4fd37a}:root[data-theme="dark"] .syi.ko{color:#ff7a74}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .syi.ok{color:#4fd37a}:root:not([data-theme="light"]) .syi.ko{color:#ff7a74}}
+.smsg{font-size:13px;color:var(--red-2);margin:4px 0 0}
+.sycfg{display:grid;gap:8px}.sycfg input{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--fg);font:13px var(--body)}
+#gtn{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:300;max-width:min(560px,calc(100vw - 24px));background:#d3262b;color:#fff;font:700 14px var(--body);padding:10px 16px;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.3);cursor:pointer}
+/* pastille « 1 » : nouvelle version disponible (sur l'engrenage et sur le bouton Mettre à jour) */
+.ibtn.upd{position:relative}
+.ibtn.upd::after{content:"1";position:absolute;top:-7px;right:-7px;width:auto;height:17px;min-width:17px;padding:0 4px;border-radius:9px;background:#d3262b;color:#fff;border:0;box-shadow:0 0 0 2px var(--hdr);font:700 11px/17px var(--body);text-align:center}
+/* v25 : la pastille « 1 » clignote pour être bien visible (comme GESTIME v30) */
+@keyframes updBlink{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.2;transform:scale(1.2)}}
+.ibtn.upd::after,.rbtn .pas{animation:updBlink 1s ease-in-out infinite}
+.rbtn .pas{margin-left:auto;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:#d3262b;color:#fff;font:700 12px/20px var(--body);text-align:center}
+[hidden]{display:none!important} img{max-width:100%}
+body{margin:0}
+
+/* ===== v34 : bandeau identique à GESTIME (mêmes mesures partout) ===== */
+header.top{padding:10px max(18px,calc((100vw - 1280px)/2)) 0}
+header.top .bar{max-width:none;margin:0;padding:0;gap:6px 8px;grid-template-columns:1fr auto 1fr;align-items:center}
+header.top .ident{gap:10px}
+header.top .appico{box-shadow:none;border-radius:0}
+header.top .apptitle{line-height:1}
+header.top .store{margin-top:4px;gap:7px;line-height:1}
+header.top .logo{justify-self:center;min-height:0;background:#fff;border-radius:8px;padding:4px 8px;box-shadow:0 0 0 1px rgba(0,0,0,.18);line-height:0}
+header.top .logo img{height:44px;width:auto;max-width:none;max-height:none;padding:0;background:none;box-shadow:none;border-radius:0}
+header.top .stripe{margin:12px min(-18px,calc((1280px - 100vw)/2)) 0}
+nav.tabs{padding-top:8px}
+nav.tabs button{line-height:1.4}
+@media (max-width:640px){
+  header.top{padding:8px 10px 0}
+  header.top .bar{grid-template-columns:1fr auto 1fr}
+  header.top .logo{grid-column:auto;grid-row:auto;padding:2px 5px}
+  header.top .logo img{height:30px;padding:0}
+  header.top .appico{width:36px;height:36px}
+  header.top .apptitle{font-size:19px}
+  header.top .store{font-size:11px;letter-spacing:.14em}
+  header.top .stripe{margin:0 -10px}
+  nav.tabs{padding:6px 12px 4px}
+}
+@media (max-width:480px){
+  header.top .ident{gap:5px}
+  header.top .house{width:22px;height:22px}
+  header.top .house svg{width:14px;height:14px}
+  header.top .store{gap:5px}
+}
+
+/* v58 : saisie compacte, tout le mois tient sur un écran */
+.kpis-s{gap:8px}.kpis-s .kpi{padding:6px 12px;gap:0}.kpis-s .kpi .lbl{font-size:10px}.kpis-s .kpi .v{font-size:19px;line-height:1.25}.kpis-s .kpi .d{font-size:11px}
+.sheet td{height:20px}
+.sheet td input{padding:1px 4px;font-size:12px}
+.sheet td.hasfac input{padding-right:17px}
+.sheet td input::placeholder{font-size:11px}
+.sheet th{padding:3px 2px;font-size:10px}
+.sheet th.day,.sheet td.day{width:60px;padding:1px 6px;font-size:12px}
+.sheet td.calc{padding:1px 4px;font-size:12px}
+.sheet tr.tot td{padding:3px 4px;font-size:12px}.sheet tr.tot td.day{padding:3px 6px}
+.fhead{gap:2px}.fctl{gap:1px}.fctl-ph{height:16px}
+.sheet .fmv,.sheet .fhead .fx{width:16px;height:16px;font-size:10px;border-radius:4px}
+.sheet input.fname{padding:2px 3px;font-size:9.5px;border-radius:4px}
+.wrap{padding-block:10px 48px}.periode{margin-bottom:8px!important}.kpis-s{margin-bottom:8px!important}
+.band-s{padding-top:5px!important;padding-bottom:5px!important}
+
+/* v71 : liseré rouge fin sous chaque dimanche (saisie) */
+.sheet tr.dim td{border-bottom:2px solid #d0021b}
+
+/* v72 : avoir sans activité depuis 7 jours = ligne rouge ; triangle clignotant sur l'onglet tant qu'il en reste */
+tr.lrow td{color:var(--bad);background:color-mix(in srgb,var(--bad) 9%,transparent)}tr.lrow td b{color:var(--bad)}
+#avLate.blink svg{animation:updBlink 1s ease-in-out infinite}
+
+/* v86 : factures et avoirs automatiques */
+.facpops{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.facpopbtn{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border:1px solid var(--line,#ddd);border-radius:10px;background:var(--surface);color:var(--fg);font:inherit;cursor:pointer;text-align:left}
+.facpopbtn:hover:not(:disabled){border-color:var(--green)}.facpopbtn:disabled{opacity:.5;cursor:default}
+.facpopbtn .t{flex:1;font-weight:600}.facpopbtn .n{min-width:26px;padding:1px 8px;border-radius:999px;background:var(--sunk);font-size:12px;text-align:center}.facpopbtn .chev{font-size:18px;opacity:.6}
+.poptab{width:100%;border-collapse:collapse;font-size:14px}.poptab th{font-size:12px;text-transform:uppercase;opacity:.7;padding:6px 8px;border-bottom:1px solid var(--line,#ddd)}
+.poptab td{padding:8px;border-bottom:1px solid var(--line,#eee);vertical-align:middle}.poptab td.fic{white-space:normal;word-break:break-word}.poptab tr:hover td{background:rgba(127,127,127,.06)}
+.facov{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9000;display:grid;place-items:center;padding:16px}
+.facbox{background:var(--surface);color:var(--fg);border-radius:12px;max-width:1180px;width:100%;max-height:92vh;overflow:auto;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.facbox>.band{border-radius:12px 12px 0 0;position:sticky;top:0;z-index:2}
+.factab td{vertical-align:top}.factab select{max-width:200px}
+.facmt{width:110px;text-align:right}
+.facwarn{color:var(--warn);font-size:12px;margin-top:3px}
+.avsf{border:1px solid var(--green);background:var(--green-soft);color:var(--green-2);border-radius:12px;padding:2px 10px;font:700 12px var(--body);cursor:pointer;white-space:nowrap;margin-left:6px}.avsf:hover{background:var(--green);color:var(--on-green)}
+.avsfw{text-align:right;margin-top:4px}.avsfw .avsf{margin-left:0}
+.avsf.prop{border-color:var(--warn);background:var(--warn-soft);color:var(--warn)}.avsf.prop:hover{background:var(--warn);color:#fff}
+.cmpgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media(max-width:700px){.cmpgrid{grid-template-columns:1fr}}
+.cmpl{display:flex;gap:10px;padding:4px 0;border-bottom:1px solid var(--line);font-size:13px}.cmpl>span{color:var(--muted);min-width:110px}
+.facbtn{margin-left:auto;border:1.5px solid var(--line);background:var(--surface);color:var(--fg);border-radius:8px;padding:7px 14px;font:800 13px var(--display);letter-spacing:.03em;cursor:pointer;display:flex;align-items:center;gap:6px}
+.facbtn.on{border-color:var(--warn);background:var(--warn-soft);color:var(--warn)}.facbtn .cnt{display:inline-block;min-width:18px;padding:0 5px;border-radius:9px;background:var(--red-2);color:var(--on-red);font-size:11px;text-align:center}
+.segm{display:inline-grid;grid-template-columns:1fr 1fr;width:max-content;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-top:-4px}.segm button{min-width:90px;padding:6px 14px;border:0;background:var(--surface);color:var(--muted,#777);font:600 13px var(--body);cursor:pointer}.segm button+button{border-left:1px solid var(--line)}.segm button[aria-pressed="true"]{background:var(--green);color:#fff;cursor:default}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.fcard{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;font-size:13px}
+.fcard.fretard{border-color:#e8912d;box-shadow:inset 4px 0 0 #e8912d}
+.fcard.ina{opacity:.75}
+.fc-nom{width:100%;box-sizing:border-box;border:1px solid transparent;background:transparent;border-radius:6px;padding:3px 4px;margin:-3px -4px;font:800 16px var(--display);color:var(--fg)}
+.fc-nom:hover{border-color:var(--line)}.fc-nom:focus{border-color:var(--green);background:var(--sunk);outline:none}
+.fc-ray{font-size:12px;color:var(--muted)}
+.fc-l{display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-height:24px}
+.fc-k{color:var(--muted);flex:1 1 auto}
+.fc-ok{color:var(--green);font-weight:700}
+.fc-vide{color:var(--muted);font-style:italic}
+.fc-pdf{border:1px solid var(--line);background:var(--sunk);color:var(--fg);border-radius:6px;font:700 11px var(--body);padding:2px 6px;cursor:pointer}
+.fc-av{border:1px solid var(--line);background:var(--sunk);color:var(--fg);border-radius:999px;font:700 12px var(--body);padding:2px 10px;cursor:pointer}
+.fc-av.red{background:var(--red);border-color:var(--red);color:#fff}
+.fc-alerte{background:#fdf0dc;color:#8a4b00;border-radius:8px;padding:6px 8px;font-weight:700}.fc-alerte span{font-weight:400}
+:root[data-theme="dark"] .fc-alerte{background:#4a3517;color:#ffd08a}
+.fc-mail{width:100%;box-sizing:border-box;font-size:12px}
+.fc-bas{display:flex;justify-content:space-between;align-items:center;gap:6px;margin-top:auto;padding-top:4px;border-top:1px solid var(--line)}
+.fina{margin-top:16px}.fina summary{cursor:pointer;font-weight:700;margin-bottom:10px;color:var(--muted)}
+.mtext{max-height:58vh;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--sunk);font:12px ui-monospace,Consolas,monospace;white-space:pre}
+.ml{min-height:16px}
+.mtok{font:inherit;border:1px solid #9bc7a6;background:#e5f3e8;color:#14532d;border-radius:4px;padding:0 3px;margin:0 1px;cursor:pointer}
+.mtok.d{border-color:#9fb8e0;background:#e6eefb;color:#1e3a8a}
+.mtok:disabled{border-color:transparent;background:transparent;color:inherit;cursor:default}
+.mtok.selm{background:var(--green);border-color:var(--green);color:#fff}.mtok.seld{background:#2f5fb3;border-color:#2f5fb3;color:#fff}
+.mres{margin:0 0 10px;padding:6px 10px;border-radius:8px;background:var(--sunk)}
+.lockmsg{margin-left:auto;font:600 11px var(--body);background:rgba(255,255,255,.18);border-radius:999px;padding:3px 10px;cursor:help}.sheet.locked input[data-f]{cursor:default;color:var(--fg)}.sheet.locked input[data-f]:focus{outline:none;box-shadow:none}
+.facreg{display:grid;gap:10px;font-size:13px}.facreg .row{gap:8px;flex-wrap:wrap;align-items:center}
+.facmode{display:flex;justify-content:space-between;align-items:center;gap:12px;background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:13px}
+.facprop{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.avvues{display:flex;gap:8px;margin:0 0 12px;flex-wrap:wrap}
+.avvues button{border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:8px;padding:8px 16px;font:800 13px var(--display);letter-spacing:.04em;text-transform:uppercase;cursor:pointer;display:flex;gap:8px;align-items:baseline}
+.avvues button[aria-pressed="true"]{background:var(--green);border-color:var(--green);color:var(--on-green)}
+.avvues .c{font:500 12px var(--body);text-transform:none;opacity:.85}
+.avvues .cnt{display:inline-block;padding:0 6px;border-radius:9px;background:var(--red-2);color:var(--on-red);font:700 11px var(--body);text-transform:none}
+.band .pillbtn .cnt{display:inline-block;min-width:16px;padding:0 4px;margin-left:5px;border-radius:8px;background:#fff;color:var(--red);font-size:11px}
+</style>
+<style>
+/* ---- GESCOUNT : compléments ---- */
+body.locked header.top,body.locked nav.tabs,body.locked main,body.locked #modalRoot{display:none}
+#lock{position:fixed;inset:0;z-index:5000;display:grid;place-items:center;padding:16px;background:radial-gradient(circle at 50% 30%,var(--surface),var(--bg))}
+#lock[hidden]{display:none}
+.lockbox{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:26px 24px 22px;box-shadow:0 10px 40px rgba(0,0,0,.18);text-align:center}
+.lockbox .appico{margin:0 auto 10px;width:64px;height:64px;border-radius:15px}
+.lockbox .apptitle{font-size:32px}
+.lockbox .lsub{color:var(--muted);font-size:13px;margin:8px 0 18px}
+.lockbox form{display:grid;gap:10px;text-align:left}
+.lockbox label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:700;color:var(--muted)}
+.lockbox input{font-size:15px;padding:9px 10px}
+.lockbox .btn{justify-content:center;padding:10px;font-size:15px;margin-top:4px}
+.lmsg{min-height:20px;color:var(--red-2);font-size:13px;font-weight:600;text-align:center}
+.lfoot{margin-top:14px;font-size:11px;color:var(--muted)}
+.lstripe{height:8px;margin:18px -24px -22px;border-radius:0 0 14px 14px;background:linear-gradient(180deg,var(--green-2) 0 2px,transparent 2px 6px,var(--red-2) 6px 8px)}
+.toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.toolbar .chips{margin:0}
+.alist{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.alist li{border-left:4px solid #f5a524;background:var(--sunk);border-radius:6px;padding:6px 10px}
+.alist li.r{border-left-color:var(--red-2)}
+.alink{background:none;border:0;padding:0;margin:0;font:inherit;color:inherit;cursor:pointer;text-align:left}
+.alink:hover{text-decoration:underline}
+.alink.b{font-weight:700}
+.neg{color:var(--red-2);font-weight:700}
+.posi{color:var(--green-2);font-weight:700}
+.muted{color:var(--muted)}
+.small{font-size:12px}
+tr.dim td{opacity:.55}
+.pill.warnp{background:var(--warn-soft);color:var(--warn)}
+.pill.okp{background:var(--good-soft);color:var(--good)}
+.note{color:var(--muted);font-size:13px;margin:8px 0}
+.note.warn{background:var(--warn-soft);color:var(--warn);border-radius:8px;padding:8px 12px;font-weight:600;margin:12px 0}
+.empty-state.small{padding:14px 8px;font-size:13px}
+.kpin{font:800 20px var(--display);width:100%;padding:2px 6px;margin:2px 0}
+.stack{display:flex;height:26px;border-radius:6px;overflow:hidden;margin:6px 0 10px}
+.stack i{display:block;height:100%}
+.leg{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--muted);margin:2px 0 8px}
+.leg span{display:inline-flex;align-items:center;gap:6px}
+.leg i{display:inline-block;width:11px;height:11px;border-radius:3px}
+.opbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 12px 0}
+.opbar .chips{margin:0;flex:1 1 auto}
+.opbar input[type=search]{min-width:220px}
+td.lib{white-space:normal;min-width:260px;max-width:520px;text-align:left}
+table.ops td{vertical-align:middle}
+.psel{max-width:190px;font-size:12px;padding:3px 4px}
+.psel.vide{border-color:#f5a524;background:var(--warn-soft)}
+.pt{border:1px dashed var(--line);background:none;color:var(--muted);border-radius:12px;padding:2px 9px;font:600 12px var(--body);cursor:pointer;white-space:nowrap}
+.pt.on{border:1px solid var(--green-2);color:var(--green-2)}
+.pt.auto{border:1px solid var(--line);color:var(--green-2);display:inline-block;cursor:default}
+input.num{width:84px;text-align:right;padding:3px 5px}
+table.imp td{padding:3px 4px}
+table.imp select{max-width:180px}
+table.imp input[type=month]{width:130px}
+.h4{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.pin{width:100%;padding:3px 6px}
+.rlbl{font-size:12px;color:var(--muted);margin:10px 0 4px}
+.rtheme.r4{grid-template-columns:repeat(4,1fr)}
+.row .sp,.periode .sp{flex:1}
+details.note summary{cursor:pointer;font-weight:700}
+</style>
+</head>
+<body class="locked">
+
+<header class="top">
+  <div class="bar">
+    <div class="ident">
+      <div class="appico" aria-hidden="true"><svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gcIco" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#45b65e"/><stop offset="1" stop-color="#1b7433"/></linearGradient></defs><rect width="64" height="64" rx="14" fill="url(#gcIco)"/><g fill="none" stroke="#fff" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"><rect x="13" y="16" width="38" height="35" rx="5.5"/><path d="M13 26.5h38M23 10.5v9M41 10.5v9"/></g><g fill="none" stroke="#e3262b" stroke-width="3.6" stroke-linecap="round"><path d="M39.5 33.6A7.4 7.4 0 1 0 39.5 44.4"/><path d="M24.5 37.3h10.5M24.5 41.5h10.5"/></g></svg></div>
+      <div style="min-width:0">
+        <div class="apptitle">GES<b>COUNT</b></div>
+        <div class="store"><span id="storeName">—</span><button class="house" id="houseBtn" aria-label="Changer de magasin" aria-haspopup="menu" title="Changer de magasin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l1.5-5h15L21 9"/><path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/><path d="M5 12v8h14v-8"/><path d="M10 20v-5h4v5"/></svg></button></div>
+      </div>
+    </div>
+    <div class="logo" id="logoSlot" title="G20 Supermarchés"><img alt="G20 Supermarchés" src="data:image/png;base64,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"></div>
+    <div class="tools">
+      <button class="ibtn" id="gearBtn" aria-label="Réglages" title="Réglages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3" fill="none"/><path fill="none" d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+      <button class="ibtn" id="undoBtn" aria-label="Annuler la dernière modification" title="Annuler (Ctrl+Z)" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5" fill="none"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" fill="none"/></svg></button>
+      <button class="ibtn" id="redoBtn" aria-label="Rétablir" title="Rétablir (Ctrl+Y)" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14l5-5-5-5" fill="none"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" fill="none"/></svg></button>
+    </div>
+  </div>
+  <div class="stripe" aria-hidden="true"></div>
+</header>
+<nav class="tabs" role="tablist">
+    <button role="tab" data-tab="bord">Tableau de bord</button>
+    <button role="tab" data-tab="emp">Salariés</button>
+    <button role="tab" data-tab="sal">Salaires</button>
+    <button role="tab" data-tab="cong">Congés</button>
+    <button role="tab" data-tab="banque">Banque</button>
+    <button role="tab" data-tab="ana">Analyses</button>
+</nav>
+<div class="menu" id="storeMenu" role="menu" hidden></div>
+
+<main class="wrap" id="app"></main>
+<div id="modalRoot"></div>
+<div id="toast" hidden></div>
+
+<div id="lock">
+  <div class="lockbox">
+    <div class="appico" aria-hidden="true"><svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gcIco2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#45b65e"/><stop offset="1" stop-color="#1b7433"/></linearGradient></defs><rect width="64" height="64" rx="14" fill="url(#gcIco2)"/><g fill="none" stroke="#fff" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"><rect x="13" y="16" width="38" height="35" rx="5.5"/><path d="M13 26.5h38M23 10.5v9M41 10.5v9"/></g><g fill="none" stroke="#e3262b" stroke-width="3.6" stroke-linecap="round"><path d="M39.5 33.6A7.4 7.4 0 1 0 39.5 44.4"/><path d="M24.5 37.3h10.5M24.5 41.5h10.5"/></g></svg></div>
+    <div class="apptitle">GES<b>COUNT</b></div>
+    <p class="lsub" id="lgSub">Accès réservé. Connectez-vous pour ouvrir le logiciel.</p>
+    <form id="loginForm" autocomplete="on">
+      <label>Adresse e-mail<input id="lgMail" type="email" autocomplete="username" required></label>
+      <label>Mot de passe<input id="lgPw" type="password" autocomplete="current-password" required></label>
+      <button class="btn primary" id="lgBtn" type="submit">Se connecter</button>
+      <div class="lmsg" id="lgMsg" role="alert"></div>
+    </form>
+    <div class="lfoot">G20 BREDIS · CLAMART — salaires et comptes bancaires</div>
+    <div class="lstripe" aria-hidden="true"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+/* =====================================================================
+   GESCOUNT — salaires, congés, relevés bancaires et analyses (G20 BREDIS / CLAMART)
+   Même base que GESMAR : bandeau, réglages, synchronisation Supabase, mise à jour GitHub.
+   Différences voulues (données sensibles) :
+   - connexion obligatoire (compte Supabase, e-mail + mot de passe) ; table « gescount » réservée aux comptes connectés ;
+   - verrouillage automatique après quelques minutes sans activité (des employés utilisent le PC) ;
+   - données du PC chiffrées (AES-GCM, clé tirée du mot de passe) : illisibles sans le mot de passe.
+   ===================================================================== */
+const APP="GESCOUNT",APP_VERSION=1,TABLE="gescount",LSP="gescount.";
+const MOIS=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+const MC=["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
+const MAGS=[{id:"bredis",nom:"BREDIS"},{id:"clamart",nom:"CLAMART"}];
+const CONTRATS=["CDI","CDD","Apprentissage","Contrat pro","Étudiant","Intérim","Autre"];
+const POLES0=[["march","Marchandises"],["sal","Salaires"],["soc","Charges sociales"],["loyer","Loyer et charges"],["energ","Énergie"],["impot","Impôts et taxes"],["banque","Frais bancaires"],["assur","Assurances"],["entret","Entretien et réparations"],["tel","Téléphone et informatique"],["transp","Transport"],["emprunt","Emprunts"],["recet","Recettes"],["virint","Virements internes"],["autre","Autres"]];
+const REGLES0=[["URSSAF","soc"],["MALAKOFF","soc"],["AG2R","soc"],["KLESIA","soc"],["HUMANIS","soc"],["AUDIENS","soc"],["PREVOYANCE","soc"],["MUTUELLE","soc"],["DGFIP","impot"],["IMPOT","impot"],["TRESOR PUBLIC","impot"],["CFE","impot"],["EDF","energ"],["ENGIE","energ"],["TOTALENERGIES","energ"],["TOTAL ENERGIES","energ"],["ORANGE","tel"],["SFR","tel"],["BOUYGUES","tel"],["FREE","tel"],["AXA","assur"],["ALLIANZ","assur"],["MMA","assur"],["GENERALI","assur"],["MAAF","assur"],["FRAIS","banque"],["COMMISSION","banque"],["COTIS","banque"],["AGIOS","banque"],["INTERETS","banque"],["DIAPAR","march"],["CARREFOUR","march"],["REMISE CB","recet"],["REMISE CARTE","recet"],["REMISE CARTES","recet"],["VERSEMENT ESPECES","recet"],["ECHEANCE PRET","emprunt"],["ECH PRET","emprunt"],["REMBOURSEMENT PRET","emprunt"],["SALAIRE","sal"],["PAIE","sal"]];
+
+const S={store:"bredis",tab:"bord",year:new Date().getFullYear(),month:new Date().getMonth(),modal:false,modalPanel:null,
+  empFilt:"actifs",editEmp:null,ficheEmp:null,editBul:null,bulImport:null,relImport:null,opFilt:"tout",opPole:"",opText:"",showRegles:false,editConge:null,locked:true};
+try{S.tab=localStorage.getItem(LSP+"tab")||"bord";if(!["bord","emp","sal","cong","banque","ana"].includes(S.tab))S.tab="bord";S.store=localStorage.getItem(LSP+"store")||"bredis";if(!MAGS.some(m=>m.id===S.store))S.store="bredis"}catch(e){}
+
+/* ---------- outils ---------- */
+const $=s=>document.querySelector(s);
+const eur=new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",maximumFractionDigits:0});
+const eur2=new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",minimumFractionDigits:2,maximumFractionDigits:2});
+const n2=new Intl.NumberFormat("fr-FR",{minimumFractionDigits:2,maximumFractionDigits:2});
+const e0=v=>v==null||!isFinite(v)?"—":eur.format(Math.abs(v)<0.5?0:v), e2=v=>v==null||!isFinite(v)?"—":eur2.format(Math.abs(v)<0.005?0:v), f2=v=>v==null||v===""||!isFinite(v)?"":n2.format(v);
+const pct=v=>v==null||!isFinite(v)?"—":(v*100).toFixed(1).replace(".",",")+" %";
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const parseNum=s=>{s=String(s??"").trim().replace(/[\s  ]/g,"").replace(/€/g,"").replace(",",".");if(s==="")return null;const v=Number(s);return isFinite(v)?Math.round(v*100)/100:NaN};
+const todayISO=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+const frDate=iso=>iso?iso.slice(8,10)+"/"+iso.slice(5,7)+"/"+iso.slice(0,4):"—";
+const frD=iso=>iso?iso.slice(8,10)+"/"+iso.slice(5,7):"—";
+const mk=(y,m)=>y+"-"+String(m+1).padStart(2,"0");
+const kAdd=(k,n)=>{let y=+k.slice(0,4),m=+k.slice(5,7)-1+n;y+=Math.floor(m/12);m=((m%12)+12)%12;return mk(y,m)};
+const kLbl=k=>MOIS[+k.slice(5,7)-1]+" "+k.slice(0,4), kShort=k=>MC[+k.slice(5,7)-1]+" "+k.slice(2,4);
+const curK=()=>mk(S.year,S.month);
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const clone=o=>o===undefined?undefined:JSON.parse(JSON.stringify(o));
+const nk=s=>String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toUpperCase().replace(/[^A-Z0-9]+/g," ").trim();
+const daysBetween=(a,b)=>Math.round((Date.parse(b)-Date.parse(a))/864e5);
+const sum=(a,f)=>a.reduce((s,x)=>s+((f?f(x):x)||0),0);
+const evo=(a,b)=>a==null||b==null||!b?null:a/b-1;
+function evoHtml(v,upBad){if(v==null||!isFinite(v))return '<span class="muted">—</span>';const up=v>0.0005,dn=v<-0.0005;const cls=up?(upBad?"neg":"posi"):dn?(upBad?"posi":"neg"):"muted";return `<span class="${cls}">${up?"▲ +":dn?"▼ −":""}${Math.abs(v*100).toFixed(1).replace(".",",")} %</span>`}
+function toast(msg){const t=$("#toast");t.textContent=msg;t.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>t.hidden=true,2600)}
+function askConfirm(msg,ok){return new Promise(res=>{const o=document.createElement("div");o.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:grid;place-items:center;padding:16px";
+  o.innerHTML=`<div style="background:var(--surface,#fff);color:var(--fg,#18231b);border-radius:12px;max-width:520px;width:100%;padding:18px 20px;box-shadow:0 10px 40px rgba(0,0,0,.3)"><div style="white-space:pre-wrap;font-size:14px;line-height:1.5">${esc(msg)}</div><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px"><button class="btn" data-r="0">Annuler</button><button class="btn ${ok?"red":"primary"}" data-r="1">${esc(ok||"Continuer")}</button></div></div>`;
+  o.addEventListener("click",e=>{const b=e.target.closest("[data-r]");if(b||e.target===o){o.remove();res(!!(b&&b.dataset.r==="1"))}});document.body.appendChild(o);o.querySelector('[data-r="1"]').focus()})}
+
+/* ---------- clair / sombre ---------- */
+function getTheme(){try{return localStorage.getItem(LSP+"theme")}catch(e){return null}}
+function applyTheme(){const t=getTheme();if(t==="clair")document.documentElement.dataset.theme="light";else if(t==="sombre")document.documentElement.dataset.theme="dark"}
+function setTheme(t){try{localStorage.setItem(LSP+"theme",t)}catch(e){};applyTheme();render()}
+const isDark=()=>{const d=document.documentElement.dataset.theme;return d?d==="dark":!!(window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches)};
+applyTheme();
+
+/* ================= stockage (PC : fichiers ; navigateur : localStorage) ================= */
+const PC=!!(window.api&&typeof window.api.load==="function");
+function rawLoad(name){try{return PC?window.api.load(name):localStorage.getItem(LSP+"f."+name)}catch(e){return null}}
+function rawSave(name,j){if(PC)window.api.save(name,j);else localStorage.setItem(LSP+"f."+name,j)}
+
+/* ---------- chiffrement des données du PC ---------- */
+const te=new TextEncoder(),td=new TextDecoder();
+const b64=u=>{let s="";const a=new Uint8Array(u);for(let i=0;i<a.length;i+=0x8000)s+=String.fromCharCode.apply(null,a.subarray(i,i+0x8000));return btoa(s)};
+const unb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function deriveKey(email,pw){const base=await crypto.subtle.importKey("raw",te.encode(pw),"PBKDF2",false,["deriveKey"]);
+  return crypto.subtle.deriveKey({name:"PBKDF2",salt:te.encode("GESCOUNT|"+email),iterations:200000,hash:"SHA-256"},base,{name:"AES-GCM",length:256},false,["encrypt","decrypt"])}
+async function encTxt(key,txt){const iv=crypto.getRandomValues(new Uint8Array(12));const ct=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,te.encode(txt));return JSON.stringify({gescount:"chiffre",iv:b64(iv),ct:b64(ct)})}
+async function decTxt(key,j){const o=JSON.parse(j);if(!o||o.gescount!=="chiffre")throw new Error("format");return td.decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:unb64(o.iv)},key,unb64(o.ct)))}
+
+/* ---------- données ---------- */
+function newD(){return{employes:{},bulletins:{},ops:{},releves:{},conges:{},ca:{},
+  poles:Object.fromEntries(POLES0.map(([id,nom],i)=>[id,{nom,ordre:i}])),regles:Object.fromEntries(REGLES0.map(([m,p],i)=>["r"+i,{motif:m,pole:p}]))}}
+function norm(d){const n=newD(),o=d&&typeof d==="object"?d:{};for(const k of Object.keys(n))if(o[k]&&typeof o[k]==="object"&&!Array.isArray(o[k]))n[k]=o[k];return n}
+const STORE={};MAGS.forEach(m=>STORE[m.id]=newD());
+const META={};const meta=id=>META[id]||(META[id]={rev:0,dirty:false,base:null,cnt:0});
+const D=()=>STORE[S.store];
+const storeNom=id=>(MAGS.find(m=>m.id===(id||S.store))||{}).nom||"—";
+const SAVEQ={};
+function saveBlob(id){if(!AUTH.key)return Promise.resolve();const me=meta(id),key=AUTH.key;
+  const txt=JSON.stringify({app:APP,magasin:id,rev:me.rev,dirty:me.dirty,base:me.base,doc:STORE[id]});
+  return SAVEQ[id]=(SAVEQ[id]||Promise.resolve()).then(async()=>rawSave("gescount-"+id,await encTxt(key,txt))).catch(e=>{console.error(e);toast("Enregistrement sur ce poste impossible")})}
+async function loadLocal(){
+  for(const m of MAGS){const raw=rawLoad("gescount-"+m.id);let b=null;
+    if(raw){try{b=JSON.parse(await decTxt(AUTH.key,raw))}catch(e){try{rawSave("gescount-"+m.id+"-illisible",raw)}catch(_){}}}
+    STORE[m.id]=norm(b&&b.doc);const me=meta(m.id);me.rev=b?b.rev||0:0;me.dirty=!!(b&&b.dirty);me.base=b&&b.base?b.base:null}}
+
+/* ---------- modifications + annuler / rétablir ---------- */
+const HIST={undo:[],redo:[],lastT:0};
+function change(fn,id){id=id||S.store;const me=meta(id),before=clone(STORE[id]);
+  const now=Date.now();if(!(now-HIST.lastT<800&&HIST.undo.length&&HIST.undo[HIST.undo.length-1].id===id))HIST.undo.push({id,before});HIST.lastT=now;if(HIST.undo.length>30)HIST.undo.shift();HIST.redo=[];
+  if(!me.dirty&&!me.base)me.base=before;fn(STORE[id]);me.dirty=true;me.cnt++;saveBlob(id);SYNC.schedule(id);schedule()}
+function histStep(from,to,msg){const g=from.pop();if(!g)return;const me=meta(g.id);to.push({id:g.id,before:clone(STORE[g.id])});
+  if(!me.dirty&&!me.base)me.base=clone(STORE[g.id]);STORE[g.id]=norm(g.before);me.dirty=true;me.cnt++;saveBlob(g.id);SYNC.schedule(g.id);if(g.id!==S.store){S.store=g.id}toast(msg);render()}
+const undo=()=>histStep(HIST.undo,HIST.redo,"Modification annulée"), redo=()=>histStep(HIST.redo,HIST.undo,"Modification rétablie");
+function updHist(){const u=$("#undoBtn"),r=$("#redoBtn");if(u)u.disabled=!HIST.undo.length;if(r)r.disabled=!HIST.redo.length}
+
+/* ================= connexion (compte Supabase) ================= */
+const AUTH={email:"",pw:"",key:null,token:null,refresh:null,t:null};
+function cfg(){let c=window.SYNC&&window.SYNC.url&&window.SYNC.key?{url:window.SYNC.url,key:window.SYNC.key}:null;
+  if(c&&/VOTRE/.test(c.url+"|"+c.key))c=null;return c?{url:String(c.url).trim().replace(/\/+$/,""),key:String(c.key).trim()}:null}
+async function authReq(grant,body){const c=cfg();
+  const r=await fetch(c.url+"/auth/v1/token?grant_type="+grant,{method:"POST",headers:{apikey:c.key,"Content-Type":"application/json"},body:JSON.stringify(body)});
+  let j={};try{j=await r.json()}catch(e){}
+  if(!r.ok){const e=new Error(j.error_description||j.msg||j.message||("Erreur "+r.status));e.status=r.status;throw e}return j}
+function setSession(j){AUTH.token=j.access_token;AUTH.refresh=j.refresh_token;clearTimeout(AUTH.t);AUTH.t=setTimeout(refreshSession,Math.max(30,(j.expires_in||3600)-120)*1000)}
+async function refreshSession(){clearTimeout(AUTH.t);if(!AUTH.email)return false;
+  try{setSession(await authReq("refresh_token",{refresh_token:AUTH.refresh}));return true}
+  catch(e){try{setSession(await authReq("password",{email:AUTH.email,password:AUTH.pw}));return true}catch(_){AUTH.token=null;AUTH.t=setTimeout(refreshSession,60000);return false}}}
+function authFile(){try{return JSON.parse(rawLoad("gescount-compte")||"null")}catch(e){return null}}
+async function login(email,pw){
+  email=String(email||"").trim().toLowerCase();if(!email||!pw)throw new Error("Tapez l'adresse e-mail et le mot de passe.");
+  const c=cfg(),saved=authFile();let online=null,err=null;
+  const key=await deriveKey(email,pw);
+  if(c){try{online=await authReq("password",{email,password:pw})}catch(e){err=e}}
+  if(!online){
+    if(err&&err.status&&err.status<500)throw new Error(err.status===400||err.status===401?"Adresse e-mail ou mot de passe incorrect.":err.status===429?"Trop d'essais : attendez une minute.":"Connexion refusée : "+err.message);
+    if(!c&&!saved)throw new Error("Réglages Supabase absents : le fichier config.js doit être rempli (voir LISEZ-MOI).");
+    if(!saved||saved.email!==email)throw new Error("Pas d'accès au serveur. La première connexion sur ce poste doit se faire avec internet.");
+    try{await decTxt(key,saved.check)}catch(e){throw new Error("Mot de passe incorrect.")}
+  }
+  const first=!AUTH.key;AUTH.email=email;AUTH.pw=pw;AUTH.key=key;
+  if(online){setSession(online);rawSave("gescount-compte",JSON.stringify({email,check:await encTxt(key,"GESCOUNT-OK")}))}
+  if(first){await loadLocal();SYNC.start()}
+  else if(!AUTH.token)refreshSession().then(ok=>{if(ok)SYNC.start()});
+}
+async function unlock(email,pw){email=String(email||"").trim().toLowerCase();
+  if(AUTH.key&&email!==AUTH.email)throw new Error("Ce poste est ouvert avec "+AUTH.email+". Pour changer de compte : Réglages → Se déconnecter.");
+  const saved=authFile(),key=await deriveKey(email,pw);
+  if(saved&&saved.email===email){try{await decTxt(key,saved.check)}catch(e){throw new Error("Mot de passe incorrect.")}AUTH.pw=pw;return}
+  return login(email,pw)}
+
+/* ---------- verrouillage ---------- */
+let lastAct=Date.now();
+const lockMin=()=>{try{return +localStorage.getItem(LSP+"verrou")||5}catch(e){return 5}};
+["mousemove","mousedown","keydown","wheel","touchstart","scroll"].forEach(ev=>document.addEventListener(ev,()=>{lastAct=Date.now()},{passive:true,capture:true}));
+setInterval(()=>{if(!S.locked&&Date.now()-lastAct>lockMin()*60000)lock()},10000);
+function lock(){S.locked=true;S.modal=false;S.modalPanel=null;$("#app").innerHTML="";renderModal();showLock("")}
+function showLock(msg){document.body.classList.add("locked");const L=$("#lock");L.hidden=false;
+  const saved=authFile(),mail=AUTH.email||(saved&&saved.email)||"";
+  $("#lgMail").value=mail;$("#lgPw").value="";$("#lgMsg").textContent=msg||"";$("#lgSub").textContent=AUTH.key?"Logiciel verrouillé : retapez votre mot de passe.":"Accès réservé. Connectez-vous pour ouvrir le logiciel.";
+  setTimeout(()=>(mail?$("#lgPw"):$("#lgMail")).focus(),30)}
+function hideLock(){S.locked=false;lastAct=Date.now();document.body.classList.remove("locked");$("#lock").hidden=true;render()}
+$("#loginForm").addEventListener("submit",async e=>{e.preventDefault();const b=$("#lgBtn"),m=$("#lgMsg");b.disabled=true;m.textContent="Vérification…";
+  try{if(AUTH.key)await unlock($("#lgMail").value,$("#lgPw").value);else await login($("#lgMail").value,$("#lgPw").value);hideLock()}
+  catch(err){m.textContent=err.message||String(err);$("#lgPw").select()}finally{b.disabled=false}});
+async function logout(){if(!await askConfirm("Se déconnecter de GESCOUNT sur ce poste ?\nLes données restent enregistrées (chiffrées) sur le PC et en ligne.","Se déconnecter"))return;
+  try{await Promise.all(Object.values(SAVEQ))}catch(e){}location.reload()}
+
+/* ================= synchronisation Supabase (table « gescount ») ================= */
+function gmMerge(base,mine,theirs,res){const J=JSON.stringify,eq=(a,b)=>J(a)===J(b),obj=o=>o&&typeof o==="object"&&!Array.isArray(o),prim=v=>v===undefined||v===null||typeof v!=="object",cp=v=>v===undefined?undefined:JSON.parse(J(v));
+  if(eq(mine,base))return cp(theirs);if(eq(theirs,base))return cp(mine);if(eq(mine,theirs))return cp(mine);
+  if(obj(mine)&&obj(theirs)){const b=obj(base)?base:{},o={};for(const k of new Set([...Object.keys(b),...Object.keys(mine),...Object.keys(theirs)])){const v=gmMerge(b[k],mine[k],theirs[k],res);if(v!==undefined)o[k]=v}return o}
+  if(Array.isArray(mine)&&Array.isArray(theirs)){const idd=a=>a.every(x=>obj(x)&&x.id!=null);
+    if(idd(mine)&&idd(theirs)){const B=new Map((Array.isArray(base)&&idd(base)?base:[]).map(x=>[x.id,x])),M=new Map(mine.map(x=>[x.id,x])),T=new Map(theirs.map(x=>[x.id,x])),out=[];
+      for(const i of [...mine.map(x=>x.id),...theirs.map(x=>x.id).filter(i=>!M.has(i))]){const v=gmMerge(B.get(i),M.get(i),T.get(i),res);if(v!==undefined)out.push(v)}return out}
+    return cp(mine)}
+  if(prim(mine)&&prim(theirs)){res.n++;return typeof mine==="string"||typeof theirs==="string"?"":undefined}
+  return cp(mine)}
+const EFF_MSG="⚠️ Une case a été tapée en même temps sur un autre poste : elle a été effacée, réécrivez-la.";
+function gmNotice(msg){let n=document.getElementById("gtn");if(!n){n=document.createElement("div");n.id="gtn";n.setAttribute("role","alert");document.body.appendChild(n);n.addEventListener("click",()=>n.remove())}
+  n.textContent=msg+"  ✕";clearTimeout(gmNotice.t);gmNotice.t=setTimeout(()=>{const x=document.getElementById("gtn");if(x)x.remove()},10000)}
+const SYNC=(()=>{
+  const st={state:"off",msg:"Synchronisation non réglée",busy:false,timer:null,pend:new Set(),poll:null,started:false};
+  const ERR=/Erreur|Accès|Table|connect/;
+  function set(state,msg){const ch=st.state!==state||st.msg!==msg;st.state=state;st.msg=msg;if(ch&&S.modal)renderModal()}
+  async function req(path,opt,again){const c=cfg();if(!AUTH.token)throw new Error("Hors ligne : pas encore connecté au serveur");
+    const r=await fetch(c.url+"/rest/v1/"+path,Object.assign({},opt,{headers:Object.assign({apikey:c.key,Authorization:"Bearer "+AUTH.token,"Content-Type":"application/json"},opt&&opt.headers)}));
+    if(r.status===401&&!again){if(await refreshSession())return req(path,opt,true)}
+    if(!r.ok){let t="";try{t=(await r.json()).message||""}catch(e){}
+      throw new Error(r.status===401||r.status===403?"Accès refusé par la base (reconnectez-vous, ou vérifiez le script SQL)":r.status===404||/does not exist|schema cache/.test(t)?"Table « gescount » absente : lancez le script SQL dans Supabase":"Erreur "+r.status+(t?" : "+t:""))}
+    return r.status===204||r.status===201?null:r.json()}
+  const pull=async id=>{const a=await req(TABLE+"?id=eq."+encodeURIComponent(id)+"&select=data,rev");return a&&a[0]||null};
+  function adopt(id,row){const me=meta(id),theirs=norm(row.data&&row.data.doc),res={n:0};
+    if(me.dirty)STORE[id]=norm(me.base?gmMerge(me.base,STORE[id],theirs,res):gmMerge(theirs,STORE[id],theirs,res));else STORE[id]=theirs;
+    me.base=me.dirty?clone(theirs):null;me.rev=row.rev;
+    if(res.n){me.eff=Date.now();me.effSeen=me.eff;gmNotice(EFF_MSG)}
+    else{const e=row.data&&row.data.eff;if(e&&e>(me.effSeen||0)){if(me.seenOnce)gmNotice(EFF_MSG);me.effSeen=e}}
+    me.seenOnce=true;saveBlob(id);schedule()}
+  async function push(id){const me=meta(id);
+    for(let essai=0;essai<4;essai++){
+      const cnt=me.cnt,doc=clone(STORE[id]),body={data:{app:APP,magasin:id,doc,eff:me.eff||undefined},rev:me.rev+1,updated_at:new Date().toISOString()};
+      const a=await req(TABLE+"?id=eq."+encodeURIComponent(id)+"&rev=eq."+me.rev,{method:"PATCH",headers:{Prefer:"return=representation"},body:JSON.stringify(body)});
+      if(a&&a.length){me.rev=a[0].rev;if(me.cnt===cnt){me.dirty=false;me.base=null}else me.base=doc;saveBlob(id);return}
+      const r=await pull(id);
+      if(!r){await req(TABLE,{method:"POST",headers:{Prefer:"return=minimal"},body:JSON.stringify({id,data:{app:APP,magasin:id,doc:newD()},rev:0})});me.rev=0;continue}
+      adopt(id,r)}
+    throw new Error("Erreur : trop de modifications en même temps, nouvel essai bientôt")}
+  async function flush(){if(st.busy||!cfg()||!st.started)return;st.busy=true;const ids=[...st.pend];st.pend.clear();set("wait","Envoi…");
+    try{for(const id of ids)await push(id);set("ok","Synchronisé avec les autres postes")}
+    catch(e){ids.forEach(i=>st.pend.add(i));set("ko",ERR.test(e.message)?e.message:"Hors ligne : modifications gardées sur ce poste");setTimeout(flush,5000)}
+    finally{st.busy=false;if(st.pend.size&&st.state!=="ko")setTimeout(flush,800)}}
+  function schedule(id){if(!cfg()||!st.started)return;st.pend.add(id);clearTimeout(st.timer);st.timer=setTimeout(flush,800)}
+  async function first(){
+    for(const m of MAGS){const id=m.id,me=meta(id),r=await pull(id);
+      if(r&&r.data&&r.data.eff)me.effSeen=Math.max(me.effSeen||0,r.data.eff);
+      if(!r){me.dirty=true;st.pend.add(id);continue}
+      if(!r.data||!r.data.doc){me.rev=r.rev;me.dirty=true;st.pend.add(id);continue}
+      if(r.rev>me.rev||(!me.dirty&&r.rev!==me.rev))adopt(id,r);else if(r.rev<me.rev){me.rev=r.rev;me.dirty=true}
+      if(me.dirty)st.pend.add(id);me.seenOnce=true}}
+  async function poll(){if(!cfg()||!st.started||st.busy||st.pend.size)return;const a=document.activeElement;if(a&&/INPUT|SELECT|TEXTAREA/.test(a.tagName)&&!S.locked)return;
+    try{const all=await req(TABLE+"?select=id,rev");let ch=false;
+      for(const x of all||[]){if(!MAGS.some(m=>m.id===x.id))continue;const me=meta(x.id);if(x.rev>me.rev){const r=await pull(x.id);if(r){adopt(x.id,r);ch=true;if(me.dirty)st.pend.add(x.id)}}}
+      if(st.pend.size)flush();else set("ok",ch?"Mis à jour depuis un autre poste":"Synchronisé avec les autres postes")}
+    catch(e){set("ko",ERR.test(e.message)?e.message:"Hors ligne")}}
+  let visHook=false;
+  async function start(){if(st.started)return;if(!cfg()){set("off","Synchronisation non réglée (config.js)");return}
+    if(!AUTH.token){set("ko","Hors ligne : modifications gardées sur ce poste");setTimeout(async()=>{if(await refreshSession())start()},30000);return}
+    st.started=true;set("wait","Synchronisation…");
+    try{await first();if(st.pend.size)await flush();else set("ok","Synchronisé avec les autres postes")}
+    catch(e){st.started=false;set("ko",ERR.test(e.message)?e.message:"Hors ligne : modifications gardées sur ce poste");setTimeout(start,15000);return}
+    clearInterval(st.poll);st.poll=setInterval(poll,15000);
+    if(!visHook){visHook=true;document.addEventListener("visibilitychange",()=>{if(!document.hidden)poll()})}}
+  function markAll(){MAGS.forEach(m=>{const me=meta(m.id);me.dirty=true;me.cnt++;saveBlob(m.id);schedule(m.id)})}
+  return{st,start,schedule,markAll,poll};
+})();
+
+/* ================= calculs ================= */
+const empNom=e=>e?((e.nom||"").toUpperCase()+(e.prenom?" "+e.prenom:"")).trim()||"(sans nom)":"(salarié supprimé)";
+const emps=d=>Object.entries((d||D()).employes).map(([id,e])=>({id,...e}));
+const empActif=e=>e.actif!==false&&!(e.sortie&&e.sortie<todayISO());
+const bulsOf=(d,k)=>Object.entries(d.bulletins).filter(([,b])=>!k||b.mois===k).map(([id,b])=>({id,...b}));
+const cout=b=>b.cout!=null&&b.cout!==""?+b.cout:(b.brut||0)+(b.chargesPat||0);
+function masse(d,k){const L=bulsOf(d,k);return{n:L.length,cout:sum(L,cout),brut:sum(L,b=>b.brut||0),net:sum(L,b=>b.net||0),pat:sum(L,b=>b.chargesPat||0),sal:sum(L,b=>b.chargesSal||0),primes:sum(L,b=>b.primes||0),hsup:sum(L,b=>b.hsup||0)}}
+function anc(e){if(!e.entree)return"—";const m=Math.max(0,(new Date().getFullYear()-+e.entree.slice(0,4))*12+(new Date().getMonth()+1-+e.entree.slice(5,7)));return m<12?m+" mois":Math.floor(m/12)+" an"+(m>=24?"s":"")+(m%12?" "+(m%12)+" m":"")}
+function lastBul(d,empId,before){return bulsOf(d).filter(b=>b.emp===empId&&(!before||b.mois<=before)).sort((a,b)=>a.mois<b.mois?1:-1)[0]||null}
+function cpInfo(d,e){const b=bulsOf(d).filter(x=>x.emp===e.id&&x.cpSolde!=null&&x.cpSolde!=="").sort((a,b)=>a.mois<b.mois?1:-1)[0];
+  const man=e.cpSolde!=null&&e.cpSolde!==""?{solde:+e.cpSolde,au:e.cpAu||"",src:"saisi"}:null;
+  const fromB=b?{solde:+b.cpSolde,acquis:b.cpAcquis,pris:b.cpPris,au:kAdd(b.mois,1)+"-01",src:"bulletin "+kShort(b.mois)}:null;
+  const r=!fromB?man:!man?fromB:(man.au>fromB.au?man:fromB);if(!r)return null;
+  const poses=Object.values(d.conges).filter(c=>c.emp===e.id&&c.debut>=(r.au||"")).reduce((s,c)=>s+(+c.jours||0),0);
+  return{...r,poses,reste:r.solde-poses}}
+function joursOuvrables(a,b){if(!a||!b||b<a)return 0;let n=0;for(let t=Date.parse(a);t<=Date.parse(b);t+=864e5){if(new Date(t).getUTCDay()!==0)n++}return n}
+
+/* banque */
+const STOP=new Set("PRLV SEPA VIR VIREMENT CB CARTE FACTURE FACT PAIEMENT PAI DU DE LE LA LES DES ET REF ECH MDT RUM ICS INST INSTANTANE EMIS RECU WEB PAR POUR AU A SA SAS SARL EURL SNC FR N NO NUM ORDRE BENEF DONNEUR MOTIF ID ACHAT PRELEVEMENT EUROPEEN RECURRENT PERMANENT TIP CHQ CHEQUE EN FAVEUR ECHEANCE DATE".split(" "));
+function tiers(lib){const w=nk(lib).split(" ").filter(Boolean),k=w.filter(x=>!STOP.has(x)&&!/\d/.test(x)&&x.length>1);return(k.length?k:w.filter(x=>!/\d/.test(x))).slice(0,2).join(" ")||w.slice(0,2).join(" ")}
+function classer(d,lib){const L=" "+nk(lib)+" ";let best=null;for(const r of Object.values(d.regles)){const m=nk(r.motif);if(m&&L.includes(" "+m)&&d.poles[r.pole]&&(!best||m.length>nk(best.motif).length))best=r}return best?best.pole:""}
+const opsAll=d=>Object.entries(d.ops).map(([id,o])=>({id,...o})).filter(o=>o.date);
+const opsMois=(d,k)=>opsAll(d).filter(o=>o.date.slice(0,7)===k);
+const poleNom=(d,p)=>p&&d.poles[p]?d.poles[p].nom:"Non classé";
+const polesTri=d=>Object.entries(d.poles).map(([id,p])=>({id,...p})).sort((a,b)=>(a.ordre??99)-(b.ordre??99));
+const isInterne=o=>o.pole==="virint";
+function moisCouverts(d){const s=new Set();for(const r of Object.values(d.releves)){if(!r.debut||!r.fin)continue;let k=r.debut.slice(0,7);while(k<=r.fin.slice(0,7)){s.add(k);k=kAdd(k,1)}}opsAll(d).forEach(o=>s.add(o.date.slice(0,7)));return s}
+function tiersIdx(d){const T={};for(const o of opsAll(d)){const t=o.tiers||tiers(o.lib);const x=T[t]||(T[t]={t,first:o.date,mois:{},ops:[]});if(o.date<x.first)x.first=o.date;x.mois[o.date.slice(0,7)]=(x.mois[o.date.slice(0,7)]||0)+o.montant;x.ops.push(o)}return T}
+function soldeFin(d,k){const r=Object.values(d.releves).filter(r=>r.fin&&r.fin.slice(0,7)<=k&&r.soldeFin!=null).sort((a,b)=>a.fin<b.fin?1:-1)[0];return r?{v:r.soldeFin,au:r.fin}:null}
+function salaireAuto(d){ // opérations de virement de salaire reconnues : montant = net d'un bulletin du mois ou du mois d'avant
+  const m={},B=bulsOf(d);for(const o of opsAll(d)){if(o.montant>=0||o.pointe)continue;const k=o.date.slice(0,7),L=nk(o.lib);
+    const c=B.filter(b=>(b.mois===k||b.mois===kAdd(k,-1))&&b.net&&Math.abs(Math.abs(o.montant)-b.net)<0.01);
+    const best=c.find(b=>{const e=d.employes[b.emp];return e&&e.nom&&L.includes(nk(e.nom))})||(c.length===1?c[0]:null);
+    if(best)m[o.id]=best}return m}
+function abonnements(d,k){const T=tiersIdx(d),out=[];const mm=[kAdd(k,-3),kAdd(k,-2),kAdd(k,-1),k];
+  for(const x of Object.values(T)){const deb=x.ops.filter(o=>o.montant<0&&!isInterne(o));const per=mm.map(m=>deb.filter(o=>o.date.slice(0,7)===m));
+    if(per.filter(a=>a.length).length<3||per.some(a=>a.length>2))continue;
+    const seq=deb.filter(o=>o.date.slice(0,7)<=k).sort((a,b)=>a.date<b.date?-1:1);if(seq.length<3)continue;
+    const last=seq[seq.length-1],prev=seq[seq.length-2],a=Math.abs(last.montant),p=Math.abs(prev.montant);
+    out.push({t:x.t,pole:last.pole,dernier:a,avant:p,hausse:a>p*1.02&&a-p>1?a/p-1:null,jour:+last.date.slice(8,10),date:last.date,moy:sum(seq.slice(-3),o=>Math.abs(o.montant))/Math.min(3,seq.length)})}
+  return out.sort((a,b)=>b.dernier-a.dernier)}
+function nouvelles(d,k){const T=tiersIdx(d),avant=opsAll(d).some(o=>o.date.slice(0,7)<k);if(!avant)return[];
+  return Object.values(T).filter(x=>x.first.slice(0,7)===k).flatMap(x=>x.ops.filter(o=>o.montant<0&&o.date.slice(0,7)===k&&!isInterne(o)).map(o=>({...o,t:x.t}))).sort((a,b)=>a.montant-b.montant)}
+function disparues(d,k){const T=tiersIdx(d),cov=moisCouverts(d);if(!cov.has(k))return[];
+  return Object.values(T).filter(x=>[1,2,3].every(i=>(x.mois[kAdd(k,-i)]||0)<0)&&!x.mois[k]).map(x=>({t:x.t,moy:Math.abs(([1,2,3].reduce((s,i)=>s+x.mois[kAdd(k,-i)],0))/3),pole:x.ops[x.ops.length-1].pole}))}
+function doublons(d,k){const L=opsMois(d,k).filter(o=>o.montant<0).sort((a,b)=>a.date<b.date?-1:1),out=[];
+  for(let i=0;i<L.length;i++)for(let j=i+1;j<L.length;j++){const a=L[i],b=L[j];if(daysBetween(a.date,b.date)>3)break;
+    if(Math.abs(a.montant-b.montant)<0.005&&(a.tiers||tiers(a.lib))===(b.tiers||tiers(b.lib))&&Math.abs(a.montant)>=5)out.push([a,b])}return out}
+function parPole(d,k){const r={};for(const o of opsMois(d,k)){const p=o.pole||"";r[p]=(r[p]||0)+o.montant}return r}
+function alertes(){const d=D(),t=todayISO(),k=curK(),out=[];
+  for(const e of emps(d).filter(empActif)){
+    if(e.finContrat){const j=daysBetween(t,e.finContrat);if(j<=30)out.push({tab:"emp",niv:j<0?"r":"o",txt:`${empNom(e)} : fin de ${e.contrat||"contrat"} ${j<0?"dépassée depuis le":"le"} ${frDate(e.finContrat)}${j>=0?" (dans "+j+" j)":""}`})}
+    if(e.finEssai){const j=daysBetween(t,e.finEssai);if(j>=0&&j<=15)out.push({tab:"emp",niv:"o",txt:`${empNom(e)} : fin de la période d'essai le ${frDate(e.finEssai)} (dans ${j} j)`})}
+    if(e.visite){const j=daysBetween(t,e.visite);if(j<=30)out.push({tab:"emp",niv:j<0?"r":"o",txt:`${empNom(e)} : visite médicale ${j<0?"à refaire (prévue le":"le"} ${frDate(e.visite)}${j<0?")":""}`})}
+    const mo=new Date().getMonth();if(mo>=2&&mo<=4){const c=cpInfo(d,e);if(c&&c.reste>0)out.push({tab:"cong",niv:mo===4?"r":"o",txt:`${empNom(e)} : ${n2.format(c.reste).replace(",00","")} jour(s) de congés à prendre avant le 31 mai`})}
+  }
+  for(const b of bulsOf(d,k)){const p=bulsOf(d,kAdd(k,-1)).find(x=>x.emp===b.emp);if(p&&p.brut&&b.brut){const v=b.brut/p.brut-1;if(Math.abs(v)>=0.1)out.push({tab:"sal",niv:"o",txt:`Salaire de ${empNom(d.employes[b.emp])} : brut ${v>0?"+":"−"}${Math.abs(v*100).toFixed(0)} % par rapport à ${MOIS[+kAdd(k,-1).slice(5,7)-1].toLowerCase()}`})}}
+  const nc=opsMois(d,k).filter(o=>!o.pole).length;if(nc)out.push({tab:"banque",niv:"o",txt:`${nc} opération(s) bancaire(s) de ${MOIS[S.month].toLowerCase()} non classée(s)`,act:"nonclassees"});
+  const nv=nouvelles(d,k);if(nv.length)out.push({tab:"ana",niv:"o",txt:`${nv.length} nouvelle(s) dépense(s) apparue(s) en ${MOIS[S.month].toLowerCase()}`});
+  const db=doublons(d,k);if(db.length)out.push({tab:"ana",niv:"r",txt:`${db.length} prélèvement(s) peut-être en double en ${MOIS[S.month].toLowerCase()}`});
+  const ab=abonnements(d,k).filter(a=>a.hausse&&a.date.slice(0,7)===k);if(ab.length)out.push({tab:"ana",niv:"o",txt:`${ab.length} prélèvement(s) régulier(s) en hausse : ${ab.slice(0,3).map(a=>a.t).join(", ")}`});
+  return out}
+
+/* ================= affichage ================= */
+let pending=null;
+function schedule(){const a=document.activeElement;if(a&&a.closest&&a.closest("#app,#modalRoot")&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)&&a.type!=="file"&&a.type!=="checkbox"){pending=true;return}render()}
+document.addEventListener("focusout",()=>{if(pending){pending=null;setTimeout(()=>{const a=document.activeElement;if(a&&a.closest&&a.closest("#app,#modalRoot")&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))pending=true;else render()},0)}});
+
+function periode(extra){return `<div class="periode"><button class="nav" data-per="-1" aria-label="Mois précédent">‹</button><select id="perMois" aria-label="Mois">${MOIS.map((n,i)=>`<option value="${i}" ${i===S.month?"selected":""}>${n}</option>`).join("")}</select><input id="perAn" type="number" inputmode="numeric" min="2000" max="2100" value="${S.year}" aria-label="Année"><button class="nav" data-per="1" aria-label="Mois suivant">›</button>${extra||""}</div>`}
+function bars(labels,series,fmt,h){h=h||170;const W=Math.max(560,labels.length*58),pad=34,n=labels.length,max=Math.max(1,...series.flatMap(s=>s.v.map(x=>Math.abs(x||0))));
+  const bw=(W-pad*2)/n,sw=Math.min(22,(bw-10)/series.length);
+  let g="";labels.forEach((l,i)=>{series.forEach((s,j)=>{const v=s.v[i]||0,bh=Math.abs(v)/max*(h-40),x=pad+i*bw+(bw-sw*series.length)/2+j*sw;
+      g+=`<rect x="${x.toFixed(1)}" y="${(h-22-bh).toFixed(1)}" width="${(sw-2).toFixed(1)}" height="${bh.toFixed(1)}" rx="2" fill="${s.c}"><title>${esc(l+" · "+s.n+" : "+fmt(v))}</title></rect>`});
+    g+=`<text x="${(pad+i*bw+bw/2).toFixed(1)}" y="${h-6}" text-anchor="middle" font-size="11" fill="var(--muted)">${esc(l)}</text>`});
+  const leg=series.length>1?`<div class="leg">${series.map(s=>`<span><i style="background:${s.c}"></i>${esc(s.n)}</span>`).join("")}</div>`:"";
+  return `${leg}<div class="scroll"><svg viewBox="0 0 ${W} ${h}" width="100%" style="min-width:${Math.min(W,700)}px;max-height:${h+10}px" role="img">${g}<line x1="${pad}" x2="${W-pad}" y1="${h-22}" y2="${h-22}" stroke="var(--line)"/></svg></div>`}
+const C1="var(--green-2)",C2="var(--red-2)",C3="#8a99a6";
+
+function render(){
+  document.querySelectorAll("nav.tabs button").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===S.tab));
+  $("#storeName").textContent=storeNom();updHist();
+  if(S.locked){$("#app").innerHTML="";renderModal();return}
+  renderModal();
+  const a=document.activeElement,aid=a&&a.id;
+  $("#app").innerHTML=({bord:vBord,emp:vEmp,sal:vSal,cong:vCong,banque:vBanque,ana:vAna}[S.tab]||vBord)();
+  if(aid){const el=document.getElementById(aid);if(el&&el.tagName!=="BUTTON"&&!el.closest("#modalRoot"))el.focus()}
+}
+
+/* ---------- TABLEAU DE BORD ---------- */
+function vBord(){const d=D(),k=curK(),kp=kAdd(k,-1),M=masse(d,k),Mp=masse(d,kp),ca=d.ca[k],eff=emps(d).filter(empActif).length;
+  const ops=opsMois(d,k).filter(o=>!isInterne(o)),dep=-sum(ops.filter(o=>o.montant<0),o=>o.montant),rec=sum(ops.filter(o=>o.montant>0),o=>o.montant);
+  const opsP=opsMois(d,kp).filter(o=>!isInterne(o)),depP=-sum(opsP.filter(o=>o.montant<0),o=>o.montant);
+  const sf=soldeFin(d,k),al=alertes(),nv=nouvelles(d,k).slice(0,8);
+  const pp=parPole(d,k),ppp=parPole(d,kp);
+  const top=polesTri(d).filter(p=>p.id!=="recet"&&p.id!=="virint").map(p=>({p,v:-(pp[p.id]||0),vp:-(ppp[p.id]||0)})).filter(x=>x.v>0||x.vp>0).sort((a,b)=>b.v-a.v).slice(0,8);
+  return `${periode()}
+  <div class="grid kpis">
+    <div class="kpi hl"><span class="lbl">Masse salariale (coût employeur)</span><span class="v">${M.n?e0(M.cout):"—"}</span><span class="d">${M.n?M.n+" bulletin"+(M.n>1?"s":"")+" · "+evoHtml(evo(M.cout,Mp.cout),true)+" vs "+MC[+kp.slice(5,7)-1]:"aucun bulletin pour ce mois"}</span></div>
+    <div class="kpi"><span class="lbl">Masse salariale / CA</span><span class="v">${M.n&&ca?pct(M.cout/ca):"—"}</span><span class="d">${ca?"CA HT "+e0(ca):"CA du mois à saisir dans SALAIRES"}</span></div>
+    <div class="kpi"><span class="lbl">Effectif</span><span class="v">${eff}</span><span class="d">salarié${eff>1?"s":""} en poste</span></div>
+    <div class="kpi"><span class="lbl">Dépenses du mois</span><span class="v">${ops.length?e0(dep):"—"}</span><span class="d">${ops.length?evoHtml(evo(dep,depP),true)+" vs "+MC[+kp.slice(5,7)-1]+" · recettes "+e0(rec):"aucun relevé pour ce mois"}</span></div>
+    <div class="kpi ${sf&&sf.v<0?"alert":""}"><span class="lbl">Solde bancaire</span><span class="v">${sf?e0(sf.v):"—"}</span><span class="d">${sf?"au "+frDate(sf.au):"importez un relevé"}</span></div>
+  </div>
+  <div class="grid two" style="margin-top:16px">
+    <div class="panel"><div class="band">À surveiller</div>${al.length?`<ul class="alist">${al.map(x=>`<li class="${x.niv}"><button class="alink" data-go="${x.tab}" ${x.act?`data-gofilt="${x.act}"`:""}>${esc(x.txt)}</button></li>`).join("")}</ul>`:`<div class="empty-state small">Rien à signaler pour ${MOIS[S.month].toLowerCase()} ${S.year}.</div>`}</div>
+    <div class="panel"><div class="band">Nouvelles dépenses du mois</div>${nv.length?`<div class="scroll"><table><thead><tr><th class="l">Date</th><th class="l">Libellé</th><th>Montant</th></tr></thead><tbody>${nv.map(o=>`<tr><td class="l">${frD(o.date)}</td><td class="l lib">${esc(o.lib)}</td><td>${e2(-o.montant)}</td></tr>`).join("")}</tbody></table></div>`:`<div class="empty-state small">Aucune dépense nouvelle repérée (il faut au moins deux mois de relevés).</div>`}</div>
+  </div>
+  <div class="panel" style="margin-top:16px"><div class="band">Dépenses par pôle — ${MOIS[S.month]} ${S.year}</div>${top.length?`<div class="scroll"><table><thead><tr><th class="l">Pôle</th><th>${MC[+kp.slice(5,7)-1]}</th><th>${MC[S.month]}</th><th>Évolution</th></tr></thead><tbody>${top.map(x=>`<tr><td class="l">${esc(x.p.nom)}</td><td>${e0(x.vp)}</td><td><b>${e0(x.v)}</b></td><td>${evoHtml(evo(x.v,x.vp),true)}</td></tr>`).join("")}</tbody></table></div>`:`<div class="empty-state small">Importez des relevés dans l'onglet BANQUE pour voir les dépenses par pôle.</div>`}</div>`}
+
+/* ---------- SALARIÉS ---------- */
+function vEmp(){const d=D();if(S.ficheEmp&&d.employes[S.ficheEmp])return vFiche(S.ficheEmp);
+  const all=emps(d),L=all.filter(e=>S.empFilt==="tous"||(S.empFilt==="actifs"?empActif(e):!empActif(e))).sort((a,b)=>empNom(a).localeCompare(empNom(b)));
+  const nA=all.filter(empActif).length;
+  return `${S.editEmp?vEmpForm():""}
+  <div class="toolbar"><div class="chips">${[["actifs","En poste",nA],["sortis","Sortis",all.length-nA],["tous","Tous",all.length]].map(([v,l,c])=>`<button class="chip" data-empf="${v}" aria-pressed="${S.empFilt===v}">${l}<span class="c">${c}</span></button>`).join("")}</div>
+  <button class="btn primary" data-act="newEmp">+ Nouveau salarié</button></div>
+  <div class="panel flush"><div class="band">Salariés — ${esc(storeNom())}</div>${L.length?`<div class="scroll"><table><thead><tr><th class="l">Nom</th><th class="l">Poste</th><th class="l">Contrat</th><th class="l">Entrée</th><th class="l">Ancienneté</th><th>H / sem.</th><th>Taux horaire</th><th>Dernier brut</th><th>Dernier coût</th><th class="l">À surveiller</th><th></th></tr></thead><tbody>
+    ${L.map(e=>{const b=lastBul(d,e.id),t=todayISO(),w=[];if(e.finContrat&&daysBetween(t,e.finContrat)<=30)w.push("fin de contrat "+frD(e.finContrat));if(e.finEssai&&daysBetween(t,e.finEssai)>=0&&daysBetween(t,e.finEssai)<=15)w.push("fin d'essai "+frD(e.finEssai));if(e.visite&&daysBetween(t,e.visite)<=30)w.push("visite médicale");
+      return `<tr class="${empActif(e)?"":"dim"}"><td class="l"><button class="alink b" data-fiche="${e.id}">${esc(empNom(e))}</button></td><td class="l">${esc(e.poste||"")}</td><td class="l">${esc(e.contrat||"")}${e.finContrat?" → "+frD(e.finContrat):""}</td><td class="l">${frDate(e.entree)}</td><td class="l">${anc(e)}</td><td>${f2(e.heures)}</td><td>${e.taux?e2(e.taux):""}</td><td>${b?e0(b.brut):"—"}</td><td>${b?e0(cout(b)):"—"}</td><td class="l">${w.length?`<span class="pill warnp">${esc(w.join(" · "))}</span>`:""}</td><td><button class="btn small" data-editemp="${e.id}">Modifier</button></td></tr>`}).join("")}
+  </tbody></table></div>`:`<div class="empty-state">Aucun salarié ici.<br><small>Ajoutez-les avec « + Nouveau salarié », ou importez des bulletins de paie (onglet SALAIRES) : les salariés sont créés automatiquement.</small></div>`}</div>`}
+function vEmpForm(){const e=S.editEmp,isNew=!e.id;const v=k=>esc(e[k]??"");
+  return `<div class="panel" style="margin-bottom:16px"><div class="band">${isNew?"Nouveau salarié":"Modifier : "+esc(empNom(e))}</div>
+  <form id="empForm" class="form">
+    <label>Nom<input id="em-nom" value="${v("nom")}" required></label><label>Prénom<input id="em-prenom" value="${v("prenom")}"></label>
+    <label>Poste<input id="em-poste" value="${v("poste")}" placeholder="Caissier, employé libre-service…"></label>
+    <label>Contrat<select id="em-contrat">${CONTRATS.map(c=>`<option ${e.contrat===c?"selected":""}>${c}</option>`).join("")}</select></label>
+    <label>Date d'entrée<input id="em-entree" type="date" value="${v("entree")}"></label><label>Fin du contrat (CDD…)<input id="em-finContrat" type="date" value="${v("finContrat")}"></label>
+    <label>Fin de la période d'essai<input id="em-finEssai" type="date" value="${v("finEssai")}"></label><label>Prochaine visite médicale<input id="em-visite" type="date" value="${v("visite")}"></label>
+    <label>Heures par semaine<input id="em-heures" inputmode="decimal" value="${f2(e.heures)}"></label><label>Taux horaire brut (€)<input id="em-taux" inputmode="decimal" value="${f2(e.taux)}"></label>
+    <label>Date de sortie<input id="em-sortie" type="date" value="${v("sortie")}"></label>
+    <label class="wide">Notes<input id="em-notes" value="${v("notes")}"></label>
+    <div class="row wide"><button class="btn primary" type="submit">Enregistrer</button><button class="btn" type="button" data-act="cancelEmp">Annuler</button>${isNew?"":`<span class="sp"></span><button class="btn danger" type="button" data-delemp="${e.id}">Supprimer</button>`}</div>
+  </form></div>`}
+function vFiche(id){const d=D(),e={id,...d.employes[id]},L=bulsOf(d).filter(b=>b.emp===id).sort((a,b)=>a.mois<b.mois?1:-1),c=cpInfo(d,e);
+  const last12=L.slice(0,12).reverse();
+  return `<div class="toolbar"><button class="btn" data-act="closeFiche">‹ Retour à la liste</button><button class="btn" data-editemp="${id}">Modifier</button></div>
+  ${S.editEmp?vEmpForm():""}
+  <div class="grid kpis">
+    <div class="kpi hl"><span class="lbl">${esc(empNom(e))}</span><span class="v" style="font-size:18px">${esc(e.poste||"—")}</span><span class="d">${esc(e.contrat||"")} · entré le ${frDate(e.entree)} · ${anc(e)}</span></div>
+    <div class="kpi"><span class="lbl">Dernier brut</span><span class="v">${L[0]?e0(L[0].brut):"—"}</span><span class="d">${L[0]?kLbl(L[0].mois):""}</span></div>
+    <div class="kpi"><span class="lbl">Coût sur 12 mois</span><span class="v">${e0(sum(L.slice(0,12),cout))}</span><span class="d">${Math.min(12,L.length)} bulletin(s)</span></div>
+    <div class="kpi"><span class="lbl">Congés restants</span><span class="v">${c?n2.format(c.reste).replace(",00",""):"—"}</span><span class="d">${c?"jours ("+c.src+")":"pas encore connu"}</span></div>
+  </div>
+  ${last12.length>1?`<div class="panel" style="margin-top:16px"><div class="band">Évolution du salaire</div>${bars(last12.map(b=>kShort(b.mois)),[{n:"Brut",c:C1,v:last12.map(b=>b.brut||0)},{n:"Coût employeur",c:C2,v:last12.map(cout)}],e0)}</div>`:""}
+  <div class="panel flush" style="margin-top:16px"><div class="band">Bulletins de paie</div>${L.length?`<div class="scroll"><table><thead><tr><th class="l">Mois</th><th>Heures</th><th>Heures sup. (€)</th><th>Primes</th><th>Brut</th><th>Évol. brut</th><th>Charges sal.</th><th>Net à payer</th><th>Charges pat.</th><th>Coût total</th><th>CP restants</th><th></th></tr></thead><tbody>
+    ${L.map((b,i)=>`<tr><td class="l">${kLbl(b.mois)}</td><td>${f2(b.heures)}</td><td>${f2(b.hsup)}</td><td>${f2(b.primes)}</td><td><b>${e2(b.brut)}</b></td><td>${evoHtml(L[i+1]?evo(b.brut,L[i+1].brut):null,false)}</td><td>${f2(b.chargesSal)}</td><td>${e2(b.net)}</td><td>${f2(b.chargesPat)}</td><td><b>${e2(cout(b))}</b></td><td>${f2(b.cpSolde)}</td><td><button class="btn small" data-editbul="${b.id}">Modifier</button></td></tr>`).join("")}
+  </tbody></table></div>`:`<div class="empty-state small">Aucun bulletin pour ce salarié.</div>`}</div>`}
+
+/* ---------- SALAIRES ---------- */
+function vSal(){const d=D(),k=curK(),kp=kAdd(k,-1),L=bulsOf(d,k).sort((a,b)=>empNom(d.employes[a.emp]).localeCompare(empNom(d.employes[b.emp]))),P=bulsOf(d,kp),M=masse(d,k),ca=d.ca[k];
+  const ms=Array.from({length:12},(_,i)=>kAdd(k,i-11)),mm=ms.map(x=>masse(d,x));
+  const actifs=emps(d).filter(empActif),manquants=L.length?actifs.filter(e=>!L.some(b=>b.emp===e.id)):[];
+  return `${periode(`<span class="sp"></span><button class="btn primary" data-act="bulPdf">📄 Importer des bulletins (PDF)</button><button class="btn" data-act="newBul">+ Bulletin à la main</button>`)}
+  <input type="file" id="bulFile" accept="application/pdf,.pdf" multiple hidden>
+  ${S.bulImport?vBulImport():""}${S.editBul?vBulForm():""}
+  <div class="grid kpis">
+    <div class="kpi hl"><span class="lbl">Masse salariale (coût employeur)</span><span class="v">${e0(M.cout)}</span><span class="d">${evoHtml(evo(M.cout,masse(d,kp).cout),true)} vs ${MC[+kp.slice(5,7)-1]}</span></div>
+    <div class="kpi"><span class="lbl">Total brut</span><span class="v">${e0(M.brut)}</span><span class="d">dont primes ${e0(M.primes)} · heures sup. ${e0(M.hsup)}</span></div>
+    <div class="kpi"><span class="lbl">Total net à payer</span><span class="v">${e0(M.net)}</span><span class="d">${M.n} bulletin${M.n>1?"s":""}</span></div>
+    <div class="kpi"><span class="lbl">Charges patronales</span><span class="v">${e0(M.pat)}</span><span class="d">${M.brut?pct(M.pat/M.brut)+" du brut":""}</span></div>
+    <div class="kpi"><span class="lbl">CA HT du mois</span><input class="kpin" id="caIn" data-ca="${k}" inputmode="decimal" value="${f2(ca)}" placeholder="à saisir"><span class="d">masse / CA : <b>${M.n&&ca?pct(M.cout/ca):"—"}</b></span></div>
+  </div>
+  ${manquants.length?`<div class="note warn">Pas encore de bulletin ce mois-ci pour : ${manquants.map(e=>esc(empNom(e))).join(", ")}.</div>`:""}
+  <div class="panel flush" style="margin-top:16px"><div class="band">Bulletins — ${MOIS[S.month]} ${S.year}</div>${L.length?`<div class="scroll"><table><thead><tr><th class="l">Salarié</th><th>Heures</th><th>Heures sup. (€)</th><th>Primes</th><th>Brut</th><th>Charges sal.</th><th>Net à payer</th><th>Charges pat.</th><th>Coût total</th><th>Évol. coût</th><th>Part de la masse</th><th></th></tr></thead><tbody>
+    ${L.map(b=>{const p=P.find(x=>x.emp===b.emp);return `<tr><td class="l"><button class="alink b" data-fiche="${b.emp}">${esc(empNom(d.employes[b.emp]))}</button></td><td>${f2(b.heures)}</td><td>${f2(b.hsup)}</td><td>${f2(b.primes)}</td><td>${e2(b.brut)}</td><td>${f2(b.chargesSal)}</td><td>${e2(b.net)}</td><td>${f2(b.chargesPat)}</td><td><b>${e2(cout(b))}</b></td><td>${evoHtml(p?evo(cout(b),cout(p)):null,true)}</td><td>${M.cout?pct(cout(b)/M.cout):"—"}</td><td><button class="btn small" data-editbul="${b.id}">Modifier</button></td></tr>`}).join("")}
+    <tr class="tot"><td class="l">TOTAL</td><td>${f2(sum(L,b=>b.heures||0))}</td><td>${f2(M.hsup)}</td><td>${f2(M.primes)}</td><td>${e2(M.brut)}</td><td>${f2(M.sal)}</td><td>${e2(M.net)}</td><td>${f2(M.pat)}</td><td>${e2(M.cout)}</td><td></td><td></td><td></td></tr>
+  </tbody></table></div>`:`<div class="empty-state">Aucun bulletin pour ${MOIS[S.month].toLowerCase()} ${S.year}.<br><small>« Importer des bulletins (PDF) » lit les bulletins envoyés par le comptable (un ou plusieurs par fichier).</small></div>`}</div>
+  ${M.cout?`<div class="panel" style="margin-top:16px"><div class="band">Décomposition du coût — ${MOIS[S.month]}</div>${(()=>{const parts=[["Net versé aux salariés",M.net,C1],["Charges salariales (retenues)",Math.max(0,M.brut-M.net),"#f5a524"],["Charges patronales",M.pat,C2]],T=parts.reduce((s,p)=>s+p[1],0)||1;
+      return `<div class="stack">${parts.map(p=>`<i style="width:${(p[1]/T*100).toFixed(2)}%;background:${p[2]}" title="${esc(p[0])}"></i>`).join("")}</div><div class="leg">${parts.map(p=>`<span><i style="background:${p[2]}"></i>${esc(p[0])} : <b>${e0(p[1])}</b> (${pct(p[1]/T)})</span>`).join("")}</div>`})()}</div>`:""}
+  <div class="panel" style="margin-top:16px"><div class="band">Masse salariale sur 12 mois</div>${mm.some(x=>x.n)?bars(ms.map(kShort),[{n:"Coût employeur",c:C2,v:mm.map(x=>x.cout)},{n:"CA HT",c:C3,v:ms.map(x=>d.ca[x]||0)}],e0)+`<div class="scroll"><table><thead><tr><th class="l">Mois</th>${ms.map(x=>`<th>${kShort(x)}</th>`).join("")}</tr></thead><tbody><tr><td class="l">Coût</td>${mm.map(x=>`<td>${x.n?e0(x.cout):"—"}</td>`).join("")}</tr><tr><td class="l">CA HT</td>${ms.map(x=>`<td>${d.ca[x]?e0(d.ca[x]):"—"}</td>`).join("")}</tr><tr><td class="l">Masse / CA</td>${ms.map((x,i)=>`<td>${mm[i].n&&d.ca[x]?pct(mm[i].cout/d.ca[x]):"—"}</td>`).join("")}</tr></tbody></table></div>`:`<div class="empty-state small">Le graphique apparaîtra avec les premiers bulletins.</div>`}</div>`}
+const BUL_F=[["heures","Heures payées"],["hsup","Heures sup. (€)"],["primes","Primes (€)"],["brut","Salaire brut"],["chargesSal","Charges salariales"],["net","Net à payer"],["chargesPat","Charges patronales"],["cout","Coût total employeur"],["cpAcquis","CP acquis (j)"],["cpPris","CP pris (j)"],["cpSolde","CP restants (j)"]];
+function empOpts(sel){return emps().sort((a,b)=>empNom(a).localeCompare(empNom(b))).map(e=>`<option value="${e.id}" ${e.id===sel?"selected":""}>${esc(empNom(e))}</option>`).join("")}
+function vBulForm(){const b=S.editBul,isNew=!b.id;
+  return `<div class="panel" style="margin-bottom:16px"><div class="band">${isNew?"Nouveau bulletin":"Modifier le bulletin"}</div><form id="bulForm" class="form">
+    <label>Salarié<select id="bu-emp" required><option value="">— choisir —</option>${empOpts(b.emp)}</select></label><label>Mois<input id="bu-mois" type="month" value="${esc(b.mois||curK())}" required></label>
+    ${BUL_F.map(([k,l])=>`<label>${l}<input id="bu-${k}" inputmode="decimal" value="${f2(b[k])}"></label>`).join("")}
+    <div class="row wide"><button class="btn primary" type="submit">Enregistrer</button><button class="btn" type="button" data-act="cancelBul">Annuler</button>${isNew?"":`<span class="sp"></span><button class="btn danger" type="button" data-delbul="${b.id}">Supprimer</button>`}</div>
+    <div class="wide note">Le coût total employeur vide = brut + charges patronales.</div></form></div>`}
+function vBulImport(){const I=S.bulImport;
+  return `<div class="panel" style="margin-bottom:16px"><div class="band">Import de bulletins — vérifiez avant d'enregistrer</div>
+  ${I.busy?`<div class="empty-state small">Lecture des PDF… ${esc(I.busy)}</div>`:`<p class="note">Chaque ligne = une page lue. Corrigez si besoin, choisissez le salarié, puis « Enregistrer ». Les cases vides n'ont pas été trouvées dans le PDF.</p>
+  <div class="scroll"><table class="imp"><thead><tr><th>✓</th><th class="l">Fichier</th><th class="l">Salarié</th><th class="l">Mois</th>${BUL_F.map(([,l])=>`<th>${l}</th>`).join("")}</tr></thead><tbody>
+  ${I.rows.map((r,i)=>`<tr class="${r.ok?"":"dim"}"><td><input type="checkbox" data-bi="${i}" data-bk="ok" ${r.ok?"checked":""}></td><td class="l small">${esc(r.fichier)}${r.pages>1?" p."+r.page:""}</td>
+    <td class="l"><select data-bi="${i}" data-bk="emp"><option value="">— choisir —</option>${r.nomLu&&(!r.emp||r.emp==="+new")?`<option value="+new" ${r.emp==="+new"?"selected":""}>+ créer : ${esc(r.nomLu)}</option>`:""}${empOpts(r.emp)}</select></td>
+    <td class="l"><input type="month" data-bi="${i}" data-bk="mois" value="${esc(r.mois||"")}"></td>
+    ${BUL_F.map(([k])=>`<td><input class="num" inputmode="decimal" data-bi="${i}" data-bk="${k}" value="${f2(r[k])}"></td>`).join("")}</tr>`).join("")}
+  </tbody></table></div>
+  <div class="row" style="margin-top:12px"><button class="btn primary" data-act="bulSave">Enregistrer ${I.rows.filter(r=>r.ok).length} bulletin(s)</button><button class="btn" data-act="bulCancel">Annuler</button></div>`}</div>`}
+
+/* ---------- CONGÉS ---------- */
+function vCong(){const d=D(),L=emps(d).filter(empActif).sort((a,b)=>empNom(a).localeCompare(empNom(b))),t=todayISO();
+  const C=Object.entries(d.conges).map(([id,c])=>({id,...c})).sort((a,b)=>a.debut<b.debut?1:-1);
+  const mo=new Date().getMonth();
+  return `${mo>=2&&mo<=4?`<div class="note warn">Les congés acquis jusqu'au 31 mai doivent être pris : vérifiez les soldes ci-dessous.</div>`:""}
+  ${S.editConge?vCongForm():""}
+  <div class="toolbar"><span></span><button class="btn primary" data-act="newConge">+ Poser des congés</button></div>
+  <div class="panel flush"><div class="band">Soldes de congés payés</div>${L.length?`<div class="scroll"><table><thead><tr><th class="l">Salarié</th><th>Acquis</th><th>Pris</th><th>Solde connu</th><th class="l">Connu au</th><th>Posés à venir</th><th>Reste à poser</th><th class="l">Corriger le solde</th></tr></thead><tbody>
+    ${L.map(e=>{const c=cpInfo(d,e);return `<tr><td class="l">${esc(empNom(e))}</td><td>${c&&c.acquis!=null?f2(c.acquis):""}</td><td>${c&&c.pris!=null?f2(c.pris):""}</td><td>${c?f2(c.solde):"—"}</td><td class="l small">${c?esc(c.src)+(c.au?" ("+frDate(c.au)+")":""):"—"}</td><td>${c&&c.poses?f2(c.poses):""}</td><td><b class="${c&&c.reste<0?"neg":""}">${c?f2(c.reste):"—"}</b></td><td class="l"><input class="num" inputmode="decimal" data-cpsolde="${e.id}" value="${f2(e.cpSolde)}" placeholder="jours" title="Solde saisi à la main (remplace celui du dernier bulletin s'il est plus récent)"></td></tr>`}).join("")}
+  </tbody></table></div>`:`<div class="empty-state">Aucun salarié en poste.</div>`}</div>
+  <div class="panel flush" style="margin-top:16px"><div class="band">Congés posés</div>${C.length?`<div class="scroll"><table><thead><tr><th class="l">Salarié</th><th class="l">Du</th><th class="l">Au</th><th>Jours ouvrables</th><th class="l">Note</th><th></th></tr></thead><tbody>
+    ${C.map(c=>`<tr class="${c.fin<t?"dim":""}"><td class="l">${esc(empNom(d.employes[c.emp]))}</td><td class="l">${frDate(c.debut)}</td><td class="l">${frDate(c.fin)}</td><td>${f2(c.jours)}</td><td class="l">${esc(c.note||"")}</td><td><button class="btn small" data-delconge="${c.id}">Supprimer</button></td></tr>`).join("")}
+  </tbody></table></div>`:`<div class="empty-state small">Aucun congé posé.</div>`}</div>`}
+function vCongForm(){const c=S.editConge;return `<div class="panel" style="margin-bottom:16px"><div class="band">Poser des congés</div><form id="congForm" class="form">
+  <label>Salarié<select id="cg-emp" required><option value="">— choisir —</option>${empOpts(c.emp)}</select></label><label>Du<input id="cg-debut" type="date" value="${esc(c.debut||"")}" required></label><label>Au (inclus)<input id="cg-fin" type="date" value="${esc(c.fin||"")}" required></label>
+  <label>Jours ouvrables<input id="cg-jours" inputmode="decimal" value="${f2(c.jours)}" placeholder="calculé"></label><label class="wide">Note<input id="cg-note" value="${esc(c.note||"")}"></label>
+  <div class="row wide"><button class="btn primary" type="submit">Enregistrer</button><button class="btn" type="button" data-act="cancelConge">Annuler</button></div>
+  <div class="wide note">Jours ouvrables : du lundi au samedi (les dimanches ne comptent pas). Corrigez à la main pour un jour férié.</div></form></div>`}
+
+/* ---------- BANQUE ---------- */
+function poleOpts(d,sel,vide){return (vide?`<option value="">${esc(vide)}</option>`:"")+polesTri(d).map(p=>`<option value="${p.id}" ${p.id===sel?"selected":""}>${esc(p.nom)}</option>`).join("")}
+function vBanque(){const d=D(),k=curK(),auto=salaireAuto(d);
+  let L=opsMois(d,k).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:(a.n||0)-(b.n||0));
+  const cnt={tout:L.length,nonclassees:L.filter(o=>!o.pole).length,dep:L.filter(o=>o.montant<0).length,rec:L.filter(o=>o.montant>0).length,nonpointees:L.filter(o=>!o.pointe&&!auto[o.id]).length};
+  if(S.opFilt==="nonclassees")L=L.filter(o=>!o.pole);else if(S.opFilt==="dep")L=L.filter(o=>o.montant<0);else if(S.opFilt==="rec")L=L.filter(o=>o.montant>0);else if(S.opFilt==="nonpointees")L=L.filter(o=>!o.pointe&&!auto[o.id]);
+  if(S.opPole)L=L.filter(o=>(o.pole||"")===(S.opPole==="_"?"":S.opPole));
+  if(S.opText){const q=nk(S.opText);L=L.filter(o=>nk(o.lib).includes(q)||String(Math.abs(o.montant)).includes(S.opText.replace(",",".")))}
+  const R=Object.entries(d.releves).map(([id,r])=>({id,...r})).sort((a,b)=>(a.debut||"")<(b.debut||"")?1:-1);
+  const deb=-sum(L.filter(o=>o.montant<0),o=>o.montant),cre=sum(L.filter(o=>o.montant>0),o=>o.montant);
+  return `${periode(`<span class="sp"></span><button class="btn primary" data-act="relPdf">🏦 Importer des relevés (PDF ou CSV)</button>`)}
+  <input type="file" id="relFile" accept="application/pdf,.pdf,.csv,text/csv,.txt" multiple hidden>
+  ${S.relImport?vRelImport():""}
+  <div class="panel flush"><div class="band">Opérations — ${MOIS[S.month]} ${S.year}</div>
+  <div class="opbar"><div class="chips">${[["tout","Toutes"],["nonclassees","Non classées"],["dep","Dépenses"],["rec","Recettes"],["nonpointees","Non pointées"]].map(([v,l])=>`<button class="chip" data-opf="${v}" aria-pressed="${S.opFilt===v}">${l}<span class="c">${cnt[v]}</span></button>`).join("")}</div>
+    <select id="opPole" aria-label="Pôle"><option value="">Tous les pôles</option><option value="_" ${S.opPole==="_"?"selected":""}>Non classé</option>${poleOpts(d,S.opPole)}</select><input id="opText" type="search" placeholder="Rechercher (libellé, montant)" value="${esc(S.opText)}"></div>
+  ${L.length?`<div class="scroll"><table class="ops"><thead><tr><th class="l">Date</th><th class="l">Libellé</th><th class="l">Pôle</th><th>Débit</th><th>Crédit</th><th class="l">Pointage</th></tr></thead><tbody>
+    ${L.map(o=>{const a=auto[o.id];return `<tr><td class="l">${frD(o.date)}</td><td class="l lib" title="${esc(o.lib)}">${esc(o.lib)}</td><td class="l"><select class="psel ${o.pole?"":"vide"}" data-oppole="${o.id}">${poleOpts(d,o.pole,"— à classer —")}</select></td><td>${o.montant<0?e2(-o.montant):""}</td><td>${o.montant>0?e2(o.montant):""}</td>
+      <td class="l">${o.pointe?`<button class="pt on" data-pointe="${o.id}" title="Cliquer pour enlever le pointage">✓ ${esc(o.pointe.note||"pointé")}</button>`:a?`<span class="pt auto" title="Reconnu automatiquement : montant = net à payer du bulletin">✓ salaire ${esc(empNom(d.employes[a.emp]))}</span>`:`<button class="pt" data-pointe="${o.id}" title="Marquer comme vérifié (facture, justificatif…)">pointer</button>`}</td></tr>`}).join("")}
+    <tr class="tot"><td class="l" colspan="3">TOTAL (${L.length} opérations)</td><td>${e2(deb)}</td><td>${e2(cre)}</td><td class="l">${e2(cre-deb)}</td></tr>
+  </tbody></table></div>`:`<div class="empty-state">${cnt.tout?"Aucune opération avec ce filtre.":`Aucune opération pour ${MOIS[S.month].toLowerCase()} ${S.year}.<br><small>Importez les relevés de la Banque Populaire (PDF) : les opérations sont classées par pôle automatiquement.</small>`}</div>`}</div>
+  <div class="panel flush" style="margin-top:16px"><div class="band">Relevés importés</div>${R.length?`<div class="scroll"><table><thead><tr><th class="l">Période</th><th class="l">Fichier</th><th>Opérations</th><th>Solde début</th><th>Solde fin</th><th class="l">Contrôle</th><th></th></tr></thead><tbody>
+    ${R.map(r=>`<tr><td class="l">${frDate(r.debut)} → ${frDate(r.fin)}</td><td class="l small">${esc(r.fichier||"")}</td><td>${r.n||0}</td><td>${e2(r.soldeDebut)}</td><td>${e2(r.soldeFin)}</td><td class="l">${r.controle==="ok"?'<span class="pill okp">✓ soldes justes</span>':r.controle?`<span class="pill warnp" title="Solde début + opérations ≠ solde fin">écart ${e2(r.ecart)}</span>`:'<span class="muted">soldes non lus</span>'}</td><td><button class="btn small" data-delrel="${r.id}">Supprimer</button></td></tr>`).join("")}
+  </tbody></table></div>`:`<div class="empty-state small">Aucun relevé pour l'instant.</div>`}</div>
+  <div class="panel" style="margin-top:16px"><div class="band">Pôles et classement automatique <button class="pillbtn" data-act="togRegles">${S.showRegles?"Masquer":"Afficher"}</button></div>
+  ${S.showRegles?vRegles():`<p class="note">Quand vous changez le pôle d'une opération, GESCOUNT retient le nom du fournisseur et classe pareil les suivantes. ${Object.keys(d.regles).length} règles, ${Object.keys(d.poles).length} pôles.</p>`}</div>`}
+function vRegles(){const d=D(),R=Object.entries(d.regles).map(([id,r])=>({id,...r})).sort((a,b)=>poleNom(d,a.pole).localeCompare(poleNom(d,b.pole))||a.motif.localeCompare(b.motif));
+  return `<div class="grid two"><div><h4 class="h4">Pôles</h4><table><tbody>${polesTri(d).map(p=>`<tr><td class="l"><input class="pin" data-polenom="${p.id}" value="${esc(p.nom)}"></td><td>${opsAll(d).filter(o=>o.pole===p.id).length} op.</td></tr>`).join("")}</tbody></table>
+    <div class="row" style="margin-top:8px"><input id="newPole" placeholder="Nouveau pôle"><button class="btn small" data-act="addPole">Ajouter</button></div></div>
+  <div><h4 class="h4">Règles : « le libellé contient… » → pôle</h4><div class="scroll" style="max-height:420px;overflow:auto"><table><tbody>${R.map(r=>`<tr><td class="l">${esc(r.motif)}</td><td class="l">${esc(poleNom(d,r.pole))}</td><td><button class="btn small" data-delregle="${r.id}">✕</button></td></tr>`).join("")}</tbody></table></div>
+    <div class="row" style="margin-top:8px"><input id="newMotif" placeholder="ex. METRO"><select id="newMotifPole">${poleOpts(d,"")}</select><button class="btn small" data-act="addRegle">Ajouter</button><button class="btn small" data-act="reclasser" title="Applique les règles aux opérations non classées">Reclasser</button></div></div></div>`}
+function vRelImport(){const I=S.relImport;
+  if(I.busy)return `<div class="panel" style="margin-bottom:16px"><div class="band">Import de relevés</div><div class="empty-state small">Lecture… ${esc(I.busy)}</div></div>`;
+  const nNew=sum(I.files,f=>f.ops.filter(o=>!o.doublon).length);
+  return `<div class="panel" style="margin-bottom:16px"><div class="band">Import de relevés — vérifiez avant d'enregistrer</div><div class="scroll"><table><thead><tr><th class="l">Fichier</th><th class="l">Période</th><th>Opérations lues</th><th>Déjà présentes</th><th>Débits</th><th>Crédits</th><th>Solde début</th><th>Solde fin</th><th class="l">Contrôle</th></tr></thead><tbody>
+  ${I.files.map(f=>`<tr><td class="l small">${esc(f.fichier)}</td><td class="l">${f.err?`<span class="neg">${esc(f.err)}</span>`:frDate(f.debut)+" → "+frDate(f.fin)}</td><td>${f.ops.length}</td><td>${f.ops.filter(o=>o.doublon).length}</td><td>${e2(-sum(f.ops.filter(o=>o.montant<0),o=>o.montant))}</td><td>${e2(sum(f.ops.filter(o=>o.montant>0),o=>o.montant))}</td><td>${e2(f.soldeDebut)}</td><td>${e2(f.soldeFin)}</td><td class="l">${f.controle==="ok"?'<span class="pill okp">✓ soldes justes</span>':f.controle?`<span class="pill warnp">écart de ${e2(f.ecart)} : vérifiez</span>`:'<span class="muted">soldes non trouvés</span>'}</td></tr>`).join("")}
+  </tbody></table></div>
+  ${I.files.some(f=>f.ops.length)?`<details class="note"><summary>Voir les ${sum(I.files,f=>f.ops.length)} opérations lues</summary><div class="scroll" style="max-height:340px;overflow:auto"><table><tbody>${I.files.flatMap(f=>f.ops).slice(0,800).map(o=>`<tr class="${o.doublon?"dim":""}"><td class="l">${frDate(o.date)}</td><td class="l lib">${esc(o.lib)}</td><td class="l">${esc(poleNom(D(),o.pole))}</td><td>${o.montant<0?e2(-o.montant):""}</td><td>${o.montant>0?e2(o.montant):""}</td></tr>`).join("")}</tbody></table></div></details>`:""}
+  <div class="row" style="margin-top:12px"><button class="btn primary" data-act="relSave" ${nNew?"":"disabled"}>Enregistrer ${nNew} opération(s) dans ${esc(storeNom())}</button><button class="btn" data-act="relCancel">Annuler</button></div></div>`}
+
+/* ---------- ANALYSES ---------- */
+function vAna(){const d=D(),k=curK(),k1=kAdd(k,-1),k2=kAdd(k,-2),pp=[parPole(d,k2),parPole(d,k1),parPole(d,k)];
+  const moy3=p=>{const v=[1,2,3].map(i=>parPole(d,kAdd(k,-i))[p]||0);return v.reduce((a,b)=>a+b,0)/3};
+  const rows=[...polesTri(d),{id:"",nom:"Non classé"}].filter(p=>p.id!=="virint").map(p=>({p,v:pp.map(x=>x[p.id]||0),m3:moy3(p.id)})).filter(r=>r.v.some(x=>x)||r.m3);
+  const ms=Array.from({length:12},(_,i)=>kAdd(k,i-11)),dep=ms.map(x=>-sum(opsMois(d,x).filter(o=>o.montant<0&&!isInterne(o)),o=>o.montant)),rec=ms.map(x=>sum(opsMois(d,x).filter(o=>o.montant>0&&!isInterne(o)),o=>o.montant));
+  const nv=nouvelles(d,k),dis=disparues(d,k),ab=abonnements(d,k),db=doublons(d,k),frais=ms.map(x=>-(parPole(d,x).banque||0));
+  const sf=soldeFin(d,k),salNet=masse(d,k).net||masse(d,k1).net,soc=-(parPole(d,k).soc||parPole(d,k1).soc||0);
+  const prev=ab.filter(a=>a.pole!=="sal"&&a.pole!=="march"&&a.pole!=="virint").map(a=>({t:a.t,j:a.jour,m:a.moy}));const prevT=sum(prev,x=>x.m)+salNet+(prev.some(x=>/URSSAF/.test(x.t))?0:soc);
+  const other=MAGS.find(m=>m.id!==S.store),od=STORE[other.id],po=parPole(od,k),pm=pp[2];
+  const signe=(p,v)=>p.id==="recet"?v:-v;
+  return `${periode()}
+  <div class="panel flush"><div class="band">Évolution par pôle</div>${rows.length?`<div class="scroll"><table><thead><tr><th class="l">Pôle</th><th>${kShort(k2)}</th><th>${kShort(k1)}</th><th>${kShort(k)}</th><th>Écart vs ${MC[+k1.slice(5,7)-1]}</th><th>Évolution</th><th>vs moyenne 3 mois</th></tr></thead><tbody>
+    ${rows.map(r=>{const v=r.v.map(x=>signe(r.p,x)),m=signe(r.p,r.m3),up=r.p.id!=="recet";return `<tr><td class="l">${esc(r.p.nom)}</td><td>${e0(v[0])}</td><td>${e0(v[1])}</td><td><b>${e0(v[2])}</b></td><td>${v[2]-v[1]?(v[2]>v[1]?"+":"−")+e0(Math.abs(v[2]-v[1])):"—"}</td><td>${evoHtml(evo(v[2],v[1]),up)}</td><td>${evoHtml(evo(v[2],m),up)}</td></tr>`}).join("")}
+  </tbody></table></div><p class="note" style="padding:0 14px 10px">Montants des dépenses en positif. ▲ rouge = dépense en hausse, ▼ vert = en baisse (l'inverse pour les recettes).</p>`:`<div class="empty-state">Importez des relevés (onglet BANQUE) pour voir l'analyse.</div>`}</div>
+  <div class="grid two" style="margin-top:16px">
+    <div class="panel"><div class="band">Nouvelles dépenses (jamais vues avant)</div>${nv.length?`<table><tbody>${nv.map(o=>`<tr><td class="l">${frD(o.date)}</td><td class="l lib">${esc(o.lib)}</td><td class="l small">${esc(poleNom(d,o.pole))}</td><td><b>${e2(-o.montant)}</b></td></tr>`).join("")}</tbody></table>`:`<div class="empty-state small">Aucune.</div>`}</div>
+    <div class="panel"><div class="band">Dépenses disparues ce mois</div>${dis.length?`<table><tbody>${dis.map(x=>`<tr><td class="l">${esc(x.t)}</td><td class="l small">${esc(poleNom(d,x.pole))}</td><td>env. ${e0(x.moy)} / mois</td></tr>`).join("")}</tbody></table><p class="note">Présentes les 3 mois d'avant, absentes ce mois-ci.</p>`:`<div class="empty-state small">Aucune.</div>`}</div>
+  </div>
+  <div class="grid two" style="margin-top:16px">
+    <div class="panel"><div class="band">Prélèvements réguliers</div>${ab.length?`<div class="scroll"><table><thead><tr><th class="l">Fournisseur</th><th class="l">Pôle</th><th>Précédent</th><th>Dernier</th><th>Hausse</th></tr></thead><tbody>${ab.map(a=>`<tr><td class="l">${esc(a.t)}</td><td class="l small">${esc(poleNom(d,a.pole))}</td><td>${e2(a.avant)}</td><td>${e2(a.dernier)}</td><td>${a.hausse?`<span class="neg">▲ +${(a.hausse*100).toFixed(1).replace(".",",")} %</span>`:""}</td></tr>`).join("")}</tbody></table></div>`:`<div class="empty-state small">Il faut au moins 3 mois de relevés.</div>`}</div>
+    <div class="panel"><div class="band">Doublons possibles</div>${db.length?`<table><tbody>${db.map(([a,b])=>`<tr><td class="l">${frD(a.date)} et ${frD(b.date)}</td><td class="l lib">${esc(a.lib)}</td><td><b>${e2(-a.montant)}</b></td></tr>`).join("")}</tbody></table><p class="note">Même fournisseur, même montant, à moins de 3 jours d'écart : vérifiez que ce n'est pas un prélèvement en double.</p>`:`<div class="empty-state small">Aucun doublon repéré.</div>`}</div>
+  </div>
+  <div class="panel" style="margin-top:16px"><div class="band">Dépenses et recettes sur 12 mois</div>${dep.some(x=>x)||rec.some(x=>x)?bars(ms.map(kShort),[{n:"Dépenses",c:C2,v:dep},{n:"Recettes",c:C1,v:rec}],e0):`<div class="empty-state small">Pas encore de relevés.</div>`}
+    ${frais.some(x=>x)?`<p class="note">Frais bancaires sur 12 mois : <b>${e0(sum(frais))}</b> (ce mois-ci ${e0(frais[11])}).</p>`:""}</div>
+  <div class="grid two" style="margin-top:16px">
+    <div class="panel"><div class="band">BREDIS / CLAMART — ${MOIS[S.month]}</div>${Object.keys(pm).length||Object.keys(po).length?`<div class="scroll"><table><thead><tr><th class="l">Pôle</th><th>${esc(storeNom())}</th><th>${esc(other.nom)}</th></tr></thead><tbody>${polesTri(d).filter(p=>p.id!=="virint"&&(pm[p.id]||po[p.id])).map(p=>`<tr><td class="l">${esc(p.nom)}</td><td>${e0(signe(p,pm[p.id]||0))}</td><td>${e0(signe(p,po[p.id]||0))}</td></tr>`).join("")}</tbody></table></div>`:`<div class="empty-state small">Pas de relevés ce mois-ci pour les deux magasins.</div>`}</div>
+    <div class="panel"><div class="band">Prévision de trésorerie (30 jours)</div>${sf?`<table><tbody><tr><td class="l">Solde au ${frDate(sf.au)}</td><td><b>${e0(sf.v)}</b></td></tr>${prev.slice(0,10).map(x=>`<tr><td class="l small">Prélèvement ${esc(x.t)} (vers le ${x.j})</td><td>−${e0(x.m)}</td></tr>`).join("")}${prev.length>10?`<tr><td class="l small">… et ${prev.length-10} autres</td><td>−${e0(sum(prev.slice(10),x=>x.m))}</td></tr>`:""}${salNet?`<tr><td class="l small">Salaires nets</td><td>−${e0(salNet)}</td></tr>`:""}${soc&&!prev.some(x=>/URSSAF/.test(x.t))?`<tr><td class="l small">Charges sociales</td><td>−${e0(soc)}</td></tr>`:""}<tr class="tot"><td class="l">Solde prévu (sans les recettes)</td><td>${e0(sf.v-prevT)}</td></tr></tbody></table><p class="note">Estimation : prélèvements réguliers, salaires et charges du dernier mois, sans compter les recettes et les achats de marchandises.</p>`:`<div class="empty-state small">Importez un relevé avec son solde.</div>`}</div>
+  </div>`}
+
+/* ================= lecture des PDF et CSV ================= */
+let PDFLIB=null;
+async function pdfLib(){if(PDFLIB)return PDFLIB;let lib;
+  if(PC&&window.api.pdfjs){const src=await window.api.pdfjs();const u=x=>URL.createObjectURL(new Blob([x],{type:"text/javascript"}));lib=await import(u(src.lib));lib.GlobalWorkerOptions.workerSrc=u(src.worker)}
+  else{const base=new URL("pc/pdfjs/",location.href).href;lib=await import(base+"pdf.min.mjs");lib.GlobalWorkerOptions.workerSrc=base+"pdf.worker.min.mjs"}
+  return PDFLIB=lib}
+async function pdfPages(buf){const lib=await pdfLib();const task=lib.getDocument({data:new Uint8Array(buf),isEvalSupported:false,verbosity:0});const doc=await task.promise,pages=[];
+  try{for(let i=1;i<=doc.numPages;i++){const pg=await doc.getPage(i),tc=await pg.getTextContent();pages.push(tc.items.filter(it=>it.str&&it.str.trim()).map(it=>({s:it.str.trim(),x:it.transform[4],y:it.transform[5],w:it.width})))}}
+  finally{try{await task.destroy()}catch(_){}}return pages}
+function lignes(items){const L=[];for(const it of items.slice().sort((a,b)=>b.y-a.y||a.x-b.x)){let l=L.find(l=>Math.abs(l.y-it.y)<2.5);if(!l){l={y:it.y,t:[]};L.push(l)}l.t.push(it)}
+  L.sort((a,b)=>b.y-a.y);for(const l of L){l.t.sort((a,b)=>a.x-b.x);
+    // pdf.js coupe parfois un nombre en morceaux (« 1 » « 234,56 ») : on les recolle
+    const t=[];for(const it of l.t){const p=t[t.length-1];if(p&&/^\d{1,3}$/.test(p.s)&&/^\d{3}([ .]\d{3})*,\d{2}$/.test(it.s)&&it.x-(p.x+p.w)<6){p.s+=" "+it.s;p.w=it.x+it.w-p.x}else t.push({...it})}
+    l.t=t;l.text=t.map(x=>x.s).join(" ")}return L}
+const RE_AMT=/^[-+]?\d{1,3}(?:[ .  ]?\d{3})*,\d{2}[-]?$/;
+const amt=s=>{const neg=/^-|-$/.test(s);const v=parseFloat(String(s).replace(/[-+ .  ]/g,"").replace(",","."));return neg?-v:v};
+const RE_DATE=/^(\d{2})[\/.](\d{2})(?:[\/.](\d{2,4}))?$/;
+const y4=y=>y.length===2?"20"+y:y;
+
+function parseReleve(pages,fichier){
+  const all=pages.flatMap((p,pi)=>lignes(p).map(l=>({...l,page:pi})));const text=all.map(l=>l.text).join("\n");
+  const r={fichier,ops:[],debut:null,fin:null,soldeDebut:null,soldeFin:null};
+  let m=/du\s+(\d{2})[\/.](\d{2})[\/.](\d{2,4})\s+au\s+(\d{2})[\/.](\d{2})[\/.](\d{2,4})/i.exec(text);
+  if(m){r.debut=y4(m[3])+"-"+m[2]+"-"+m[1];r.fin=y4(m[6])+"-"+m[5]+"-"+m[4]}
+  const finY=r.fin?+r.fin.slice(0,4):new Date().getFullYear(),finM=r.fin?+r.fin.slice(5,7):12;
+  const isoOf=(dd,mm,yy)=>{let y=yy?+y4(yy):(+mm>finM?finY-1:finY);return y+"-"+mm+"-"+dd};
+  let cols=null,cur=null,n=0;const soldes=[];
+  for(const l of all){
+    const hd=l.t.find(t=>/^d[ée]bit/i.test(t.s)),hc=l.t.find(t=>/^cr[ée]dit/i.test(t.s));
+    if(hd&&hc){cols={d:hd.x+hd.w/2,c:hc.x+hc.w/2,page:l.page};cur=null;continue}
+    const am=l.t.filter(t=>RE_AMT.test(t.s));
+    const side=t=>{if(/^-|-$/.test(t.s))return -1;if(/^\+/.test(t.s))return 1;if(cols){const cx=t.x+t.w/2;return Math.abs(cx-cols.d)<=Math.abs(cx-cols.c)?-1:1}return -1};
+    if(/\bsolde\b/i.test(l.text)&&am.length){const a=am[am.length-1];let v=Math.abs(amt(a.s));if(/d[ée]biteur/i.test(l.text)||(!/cr[ée]diteur/i.test(l.text)&&side(a)<0&&cols))v=-v;
+      const dm=/(\d{2})[\/.](\d{2})[\/.](\d{2,4})/.exec(l.text);soldes.push({v,date:dm?y4(dm[3])+"-"+dm[2]+"-"+dm[1]:null});cur=null;continue}
+    if(/total\s+des\s+(mouvements|op[ée]rations)|^report|^à reporter|^a reporter/i.test(l.text)){cur=null;continue}
+    const d0=l.t[0]&&RE_DATE.exec(l.t[0].s);
+    if(d0&&am.length){const a=am[am.length-1];
+      const libT=l.t.slice(1).filter(t=>!am.includes(t)&&!(RE_DATE.test(t.s)&&t!==l.t[0]));
+      cur={date:isoOf(d0[1],d0[2],d0[3]),lib:libT.map(t=>t.s).join(" ").replace(/\s+/g," ").trim(),montant:Math.round(Math.abs(amt(a.s))*side(a)*100)/100,n:n++,page:l.page,y:l.y};r.ops.push(cur);continue}
+    if(cur&&!am.length&&!d0&&l.page===cur.page&&cur.y-l.y<16&&(cur.ext||0)<2&&!/^(date|page|banque populaire|relev[ée])/i.test(l.text)){cur.lib+=" "+l.text;cur.ext=(cur.ext||0)+1;cur.y=l.y;continue}
+    cur=null}
+  r.ops.forEach(o=>{delete o.page;delete o.y;delete o.ext;o.lib=o.lib.slice(0,160)});
+  if(soldes.length){r.soldeDebut=soldes[0].v;if(soldes.length>1)r.soldeFin=soldes[soldes.length-1].v;
+    if(!r.debut&&soldes[0].date)r.debut=soldes[0].date;if(!r.fin&&soldes.length>1&&soldes[soldes.length-1].date)r.fin=soldes[soldes.length-1].date}
+  if(!r.debut&&r.ops.length)r.debut=r.ops.map(o=>o.date).sort()[0];if(!r.fin&&r.ops.length)r.fin=r.ops.map(o=>o.date).sort().pop();
+  controle(r);return r}
+function controle(r){if(r.soldeDebut!=null&&r.soldeFin!=null){const calc=Math.round((r.soldeDebut+sum(r.ops,o=>o.montant))*100)/100;r.ecart=Math.round((r.soldeFin-calc)*100)/100;r.controle=Math.abs(r.ecart)<0.01?"ok":"ecart"}}
+function parseCsv(txt,fichier){const lines=txt.replace(/^﻿/,"").split(/\r?\n/).filter(l=>l.trim());if(!lines.length)return{fichier,ops:[],err:"fichier vide"};
+  const sep=[";","\t",","].map(s=>[s,lines[0].split(s).length]).sort((a,b)=>b[1]-a[1])[0][0];
+  const split=l=>{const out=[];let cur="",q=false;for(const ch of l){if(ch==='"')q=!q;else if(ch===sep&&!q){out.push(cur);cur=""}else cur+=ch}out.push(cur);return out.map(x=>x.trim())};
+  let hi=lines.findIndex(l=>/date/i.test(l)&&/(libell|montant|d[ée]bit|label)/i.test(l));if(hi<0)return{fichier,ops:[],err:"colonnes non reconnues (Date, Libellé, Montant ou Débit/Crédit)"};
+  const H=split(lines[hi]).map(h=>nk(h)),ix=re=>H.findIndex(h=>re.test(h));
+  const iD=ix(/^DATE( OPERATION| COMPTA| DE COMPTABILISATION)?$/)>=0?ix(/^DATE( OPERATION| COMPTA| DE COMPTABILISATION)?$/):ix(/DATE/),iL=ix(/LIBELLE|LABEL|DESCRIPTION/),iM=ix(/^MONTANT/),iDe=ix(/DEBIT/),iCr=ix(/CREDIT/);
+  const num=s=>{s=String(s||"").replace(/[\s €]/g,"");if(!s)return 0;if(/,\d{1,2}$/.test(s))s=s.replace(/\./g,"").replace(",",".");return parseFloat(s)||0};
+  const ops=[];let n=0;for(const l of lines.slice(hi+1)){const c=split(l);const dm=/^(\d{2})[\/.-](\d{2})[\/.-](\d{2,4})$/.exec(c[iD]||"")||null,di=/^(\d{4})-(\d{2})-(\d{2})/.exec(c[iD]||"");
+    const date=dm?y4(dm[3])+"-"+dm[2]+"-"+dm[1]:di?di[1]+"-"+di[2]+"-"+di[3]:null;if(!date)continue;
+    let m=iM>=0?num(c[iM]):num(c[iCr])-Math.abs(num(c[iDe]));if(!m)continue;
+    ops.push({date,lib:(c[iL]||"").replace(/\s+/g," ").slice(0,160),montant:Math.round(m*100)/100,n:n++})}
+  const ds=ops.map(o=>o.date).sort();return{fichier,ops,debut:ds[0]||null,fin:ds[ds.length-1]||null,soldeDebut:null,soldeFin:null}}
+
+function parseBulletin(items){const L=lignes(items),T=L.map(l=>l.text).join("\n");
+  const nums=l=>l.t.filter(t=>/^-?\d{1,3}(?:[ .  ]?\d{3})*,\d{2,4}$/.test(t.s)).map(t=>amt(t.s.replace(/,(\d{2})\d+$/,",$1")));
+  const line=re=>L.find(l=>re.test(l.text)&&nums(l).length);
+  const last=re=>{const l=line(re);if(!l)return null;const v=nums(l);return v[v.length-1]};
+  const r={};
+  r.brut=last(/salaire\s+brut|total\s+brut|^brut\b|\bbrut\s+(soumis|total)/i);
+  r.net=last(/net\s+[àa]\s+payer(?!\s+avant)|net\s+pay[ée]/i);if(r.net==null)r.net=last(/net\s+[àa]\s+payer/i);
+  const tc=line(/total\s+(des\s+)?(cotisations|retenues|charges)/i);if(tc){const v=nums(tc);if(v.length>=2){r.chargesSal=v[0];r.chargesPat=v[v.length-1]}else r.chargesSal=v[0]}
+  r.cout=last(/co[uû]t\s+(global|total)|total\s+(co[uû]t\s+)?employeur|co[uû]t\s+employeur/i);
+  if(r.chargesPat==null){const p=last(/(total\s+)?(charges|cotisations)\s+patronales/i);if(p!=null)r.chargesPat=p}
+  if(r.chargesPat==null&&r.cout!=null&&r.brut!=null)r.chargesPat=Math.round((r.cout-r.brut)*100)/100;
+  const base=line(/salaire\s+de\s+base|appointements|salaire\s+mensuel/i);if(base){const v=nums(base);if(v.length>=2&&v[0]<=260)r.heures=v[0]}
+  const hs=L.filter(l=>/heures?\s+sup|h\.?\s*sup\b|heures?\s+compl|majoration/i.test(l.text)&&nums(l).length).map(l=>{const v=nums(l);return v[v.length-1]});if(hs.length)r.hsup=Math.round(sum(hs)*100)/100;
+  const pr=L.filter(l=>/prime|gratification|13\s*[èe]me|treizi[èe]me|bonus/i.test(l.text)&&!/total/i.test(l.text)&&nums(l).length).map(l=>{const v=nums(l);return v[v.length-1]});if(pr.length)r.primes=Math.round(sum(pr)*100)/100;
+  const cp=line(/(solde|reste).{0,20}(cp|cong)|(cp|cong[ée]s).{0,30}(solde|reste)/i);if(cp){const v=nums(cp);r.cpSolde=v[v.length-1]}
+  let m=/p[ée]riode\s+du\s+\d{2}[\/.](\d{2})[\/.](\d{2,4})/i.exec(T)||/(?:paie|p[ée]riode|mois)\s*:?\s*(\d{2})[\/.](\d{4})/i.exec(T);
+  if(m)r.mois=y4(m[2])+"-"+m[1];else{const mm=new RegExp("("+MOIS.map(x=>nk(x)).join("|")+")\\s+(20\\d{2})").exec(nk(T));if(mm)r.mois=mm[2]+"-"+String(MOIS.map(x=>nk(x)).indexOf(mm[1])+1).padStart(2,"0")}
+  const RN=/^(m\.|mr\.?|mme|mlle|monsieur|madame)\s+(?=[a-zà-ÿ])/i;
+  for(const l of L){const i=l.t.findIndex(t=>RN.test(t.s)||(/^(m\.|mr\.?|mme|mlle|monsieur|madame)$/i.test(t.s)));if(i<0)continue;
+    let n=RN.test(l.t[i].s)?l.t[i].s.replace(RN,""):"";for(let j=i+1;j<l.t.length&&n.split(" ").length<3&&l.t[j].x-(l.t[j-1].x+l.t[j-1].w)<12;j++)n+=" "+l.t[j].s;
+    r.nomLu=n.replace(/\s+/g," ").trim().slice(0,60);if(r.nomLu)break}
+  const NT=" "+nk(T)+" ";const E=emps().filter(e=>e.nom&&NT.includes(" "+nk(e.nom)+" "));
+  if(E.length){const best=E.find(e=>e.prenom&&NT.includes(" "+nk(e.prenom)+" "))||E[0];r.emp=best.id}
+  r.trouve=["brut","net"].every(k=>r[k]!=null);return r}
+
+async function lireFichiers(files,kind){const out=[];
+  for(const f of files){const buf=await f.arrayBuffer();
+    try{if(kind==="rel"){if(/\.pdf$/i.test(f.name)||f.type==="application/pdf"){const P=await pdfPages(buf);const r=parseReleve(P,f.name);if(!r.ops.length)r.err="aucune opération trouvée";out.push(r)}
+        else{let t=new TextDecoder("utf-8").decode(buf);if(t.includes("�"))t=new TextDecoder("windows-1252").decode(buf);out.push(parseCsv(t,f.name))}}
+      else{const P=await pdfPages(buf);P.forEach((items,i)=>{const r=parseBulletin(items);if(r.brut==null&&r.net==null)return;out.push({...r,fichier:f.name,page:i+1,pages:P.length,ok:true})})}}
+    catch(e){console.error(e);out.push(kind==="rel"?{fichier:f.name,ops:[],err:"lecture impossible"}:{fichier:f.name,page:1,pages:1,ok:false,nomLu:"(PDF illisible)"})}}
+  return out}
+async function importRel(files){S.relImport={busy:files.length+" fichier(s)",files:[]};render();
+  const R=await lireFichiers(files,"rel"),d=D(),seen=new Set(opsAll(d).map(o=>o.date+"|"+o.montant+"|"+nk(o.lib)));
+  for(const r of R)for(const o of r.ops){const key=o.date+"|"+o.montant+"|"+nk(o.lib);o.doublon=seen.has(key);seen.add(key);o.pole=classer(d,o.lib)}
+  S.relImport={files:R};render()}
+function saveRel(){const I=S.relImport;if(!I)return;let n=0,nc=0;
+  change(d=>{for(const f of I.files){const ops=f.ops.filter(o=>!o.doublon);if(!ops.length&&!f.soldeFin)continue;const rid=uid();
+    d.releves[rid]={fichier:f.fichier,debut:f.debut,fin:f.fin,soldeDebut:f.soldeDebut,soldeFin:f.soldeFin,controle:f.controle||null,ecart:f.ecart??null,n:ops.length,importeLe:todayISO()};
+    for(const o of ops){d.ops[uid()]={date:o.date,lib:o.lib,montant:o.montant,pole:o.pole||"",tiers:tiers(o.lib),releve:rid,n:o.n};n++;if(!o.pole)nc++}}});
+  const last=I.files.map(f=>f.fin).filter(Boolean).sort().pop();if(last){S.year=+last.slice(0,4);S.month=+last.slice(5,7)-1}
+  S.relImport=null;S.opFilt=nc?"nonclassees":"tout";toast(n+" opération(s) enregistrée(s)"+(nc?", "+nc+" à classer":""));render()}
+async function importBul(files){S.bulImport={busy:files.length+" fichier(s)",rows:[]};render();
+  const rows=await lireFichiers(files,"bul");if(!rows.length){S.bulImport=null;toast("Aucun bulletin reconnu dans ce(s) PDF : saisissez-le à la main.");render();return}
+  rows.forEach(r=>{if(!r.mois)r.mois=curK();if(!r.emp&&r.nomLu&&r.nomLu!=="(PDF illisible)"){r.emp="+new"}});S.bulImport={rows};render()}
+function saveBul(){const I=S.bulImport;if(!I)return;const R=I.rows.filter(r=>r.ok);
+  if(R.some(r=>!r.emp||!r.mois)){toast("Choisissez le salarié et le mois de chaque ligne cochée.");return}let n=0;const crees={};
+  change(d=>{for(const r of R){let emp=r.emp;
+      if(emp==="+new"){const key=nk(r.nomLu);emp=crees[key];if(!emp){const w=(r.nomLu||"").split(" ");emp=crees[key]=uid();d.employes[emp]={nom:(w[0]||"").toUpperCase(),prenom:w.slice(1).join(" "),contrat:"CDI",actif:true}}}
+      const old=Object.entries(d.bulletins).find(([,b])=>b.emp===emp&&b.mois===r.mois);const id=old?old[0]:uid();
+      const b={emp,mois:r.mois,source:r.fichier};BUL_F.forEach(([k])=>{if(r[k]!=null&&r[k]!=="")b[k]=r[k]});d.bulletins[id]=b;n++}});
+  const k=R[0].mois;S.year=+k.slice(0,4);S.month=+k.slice(5,7)-1;S.bulImport=null;toast(n+" bulletin(s) enregistré(s)");render()}
+
+/* ================= export / import ================= */
+function exportData(){const j=JSON.stringify({app:APP,version:APP_VERSION,exporte:new Date().toISOString(),magasins:Object.fromEntries(MAGS.map(m=>[m.id,STORE[m.id]]))},null,1);
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([j],{type:"application/json"}));a.download="GESCOUNT-"+todayISO()+".json";document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);toast("Export enregistré (attention : fichier non chiffré, à garder en lieu sûr)")}
+async function importText(t){let j;try{j=JSON.parse(t)}catch(e){}
+  if(!j||j.app!==APP||!j.magasins){toast("Fichier non reconnu : choisissez un export GESCOUNT (.json).");return}
+  if(!await askConfirm("Remplacer TOUTES les données de GESCOUNT (BREDIS et CLAMART) par celles de ce fichier ?\nExportez d'abord une sauvegarde si vous n'êtes pas sûr.","Remplacer"))return;
+  for(const m of MAGS)if(j.magasins[m.id])change(()=>{STORE[m.id]=norm(j.magasins[m.id])},m.id);
+  SYNC.markAll();S.modal=false;toast("Données importées");render()}
+
+/* ================= mise à jour du logiciel (programme PC) ================= */
+const majUrl=()=>window.SYNC&&window.SYNC.updateUrl;
+const majBadge=()=>S.majNew&&S.majNew>(S.majSeenV||0);
+function majFlag(){const g=$("#gearBtn");if(g)g.classList.toggle("upd",!!majBadge())}
+async function majCheck(silent){const r=await window.api.updateCheck(majUrl());
+  if(r.status==="new"){S.majNew=r.remote;majFlag();S.majMsg="🔔 Nouvelle version disponible ("+r.remote+"), vous avez la "+r.version+"."+(r.note?" "+r.note:"")}
+  else if(!silent){S.majMsg=r.status==="none"?"✓ Vous avez la dernière version ("+r.version+").":r.status==="noconfig"?"Adresse des mises à jour non réglée (voir LISEZ-MOI.txt).":"⚠️ Impossible de vérifier : "+(r.msg||"pas de connexion")}
+  return r}
+async function majPc(){if(S.majBusy)return;S.majSeenV=S.majNew||0;majFlag();S.majBusy=true;S.majMsg="Recherche…";render();
+  try{const r=await majCheck(false);render();
+    if(r.status==="new"){S.majMsg="Téléchargement…";render();await Promise.all(Object.values(SAVEQ));
+      let a=await window.api.updateApply(majUrl());
+      for(let k=1;k<=5&&a.status==="error"&&/incomplet/i.test(a.msg||"");k++){
+        for(let sec=60;sec>0;sec--){S.majMsg="GitHub n'a pas fini de publier la nouvelle version : nouvel essai dans "+sec+" s ("+k+"/5)…";render();await new Promise(f=>setTimeout(f,1000))}
+        S.majMsg="Téléchargement…";render();a=await window.api.updateApply(majUrl())}
+      S.majMsg=a.status==="done"?"✓ Mise à jour installée, redémarrage…":"⚠️ "+(a.msg||"échec")}}catch(e){S.majMsg="⚠️ "+(e.message||e)}
+  S.majBusy=false;render()}
+
+/* ================= réglages ================= */
+const SY_OK='<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 9.5a4 4 0 0 1-.5 8.5z"/><path d="M9 13.2l2.2 2.2L15.4 11"/></svg>',SY_KO='<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 9.5a4 4 0 0 1-.5 8.5z"/><path d="M4 4l16 16"/></svg>',SY_WT='<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 9.5a4 4 0 0 1-.5 8.5z"/></svg>';
+function syncIcoHtml(){const st=SYNC.st,c=st.state==="ok"?"ok":st.state==="wait"?"wait":"ko";const t=c==="ok"?st.msg:c==="wait"?"Synchronisation en cours…":"Non synchronisé : "+st.msg;
+  return `<span id="syncIco" class="syi ${c}" role="img" aria-label="${esc(t)}" title="${esc(t)}">${c==="ok"?SY_OK:c==="ko"?SY_KO:SY_WT}</span>`}
+function renderModal(){const root=$("#modalRoot");if(!S.modal||S.locked){root.innerHTML="";return}
+  const a=document.activeElement;if(a&&root.contains(a)&&a.tagName!=="BUTTON"&&a.type!=="file"&&root.innerHTML)return;
+  const dark=isDark(),P1=S.modalPanel,vm=lockMin();
+  root.innerHTML=`<div class="overlay" data-act="closeModal"></div><div class="reglages" role="dialog" aria-label="Réglages">
+    <div class="head"><h3>Réglages</h3>${syncIcoHtml()}<button class="x" data-act="closeModal" aria-label="Fermer">✕</button></div>
+    <h4>Compte</h4>
+    <div class="rinfo" style="margin-top:0">Connecté : <b>${esc(AUTH.email)}</b>${SYNC.st.state==="ko"?`<br><span class="small">${esc(SYNC.st.msg)}</span>`:""}</div>
+    <button class="rbtn" data-act="lockNow"><span class="ic">🔒</span>Verrouiller maintenant</button>
+    <div class="rlbl">Verrouillage automatique sans activité</div>
+    <div class="rtheme r4">${[2,5,10,15].map(m=>`<button data-verrou="${m}" aria-pressed="${vm===m}">${m} min</button>`).join("")}</div>
+    <button class="rbtn" data-act="logout"><span class="ic">🚪</span>Se déconnecter</button>
+    <h4>Données</h4>
+    <button class="rbtn" data-act="export"><span class="ic">💾</span>Exporter</button>
+    <button class="rbtn" data-act="import"><span class="ic">📂</span>Importer</button><input type="file" id="importFile" accept="application/json,.json" hidden>
+    <button class="rbtn" ${PC?'data-act="openFolder"':'data-panel="dossier"'}><span class="ic">📁</span>Dossier des données</button>
+    ${P1==="dossier"?`<div class="rinfo">Les données sont enregistrées <b>chiffrées dans ce navigateur</b> et en ligne (Supabase, accès réservé aux comptes connectés).</div>`:""}
+    <h4>Logiciel</h4>
+    <button class="rbtn" ${PC&&window.api.updateCheck?'data-act="majPc"':'data-panel="maj"'} ${S.majBusy?"disabled":""}><span class="ic">🔄</span>Mettre à jour le logiciel${majBadge()?'<span class="pas" aria-label="1 nouvelle version">1</span>':""}</button>
+    ${PC?`<div class="rmaj">${esc(S.majMsg||("Version installée : "+APP_VERSION))}</div>`:""}
+    ${P1==="maj"?`<div class="rinfo">Version web : rechargez la page pour avoir la dernière version (version ${APP_VERSION}).</div>`:""}
+    <h4>Affichage</h4>
+    <div class="rtheme"><button data-theme="clair" aria-pressed="${!dark}">☀️ Clair</button><button data-theme="sombre" aria-pressed="${dark}">🌙 Sombre</button></div>
+  </div>`}
+
+/* ================= événements ================= */
+function readForm(pre,keys){const o={};keys.forEach(k=>{const el=$("#"+pre+k);if(el)o[k]=el.value.trim()});return o}
+document.addEventListener("click",async e=>{
+  const t=e.target.closest("button,[data-act]");if(!t)return;const ds=t.dataset,d=D();
+  if(t.closest("nav.tabs")&&ds.tab){S.tab=ds.tab;S.ficheEmp=null;S.editEmp=null;try{localStorage.setItem(LSP+"tab",S.tab)}catch(_){};render();return}
+  if(t.id==="houseBtn"){toggleStoreMenu();return}
+  if(ds.store){switchStore(ds.store);closeMenu();return}
+  if(t.id==="gearBtn"){S.modal=!S.modal;S.modalPanel=null;if(S.modal){S.majSeenV=S.majNew||0;majFlag()}render();return}
+  if(t.id==="undoBtn"){undo();return}if(t.id==="redoBtn"){redo();return}
+  if(ds.per){S.month+=+ds.per;if(S.month<0){S.month=11;S.year--}if(S.month>11){S.month=0;S.year++}render();return}
+  if(ds.go){S.tab=ds.go;if(ds.gofilt)S.opFilt=ds.gofilt;S.ficheEmp=null;render();scrollTo(0,0);return}
+  if(ds.theme){setTheme(ds.theme);return}
+  if(ds.verrou){try{localStorage.setItem(LSP+"verrou",ds.verrou)}catch(_){};renderModal();toast("Verrouillage après "+ds.verrou+" min sans activité");return}
+  if(ds.panel){S.modalPanel=S.modalPanel===ds.panel?null:ds.panel;renderModal();return}
+  if(ds.empf){S.empFilt=ds.empf;render();return}
+  if(ds.fiche){S.tab="emp";S.ficheEmp=ds.fiche;S.editEmp=null;render();scrollTo(0,0);return}
+  if(ds.editemp){S.editEmp={id:ds.editemp,...d.employes[ds.editemp]};render();scrollTo(0,0);return}
+  if(ds.delemp){const id=ds.delemp,nb=bulsOf(d).filter(b=>b.emp===id).length;if(!await askConfirm(`Supprimer ${empNom(d.employes[id])}${nb?` et ses ${nb} bulletin(s)`:""} ?\nPour un salarié parti, mettez plutôt une date de sortie.`,"Supprimer"))return;
+    change(x=>{delete x.employes[id];for(const[k,b]of Object.entries(x.bulletins))if(b.emp===id)delete x.bulletins[k];for(const[k,c]of Object.entries(x.conges))if(c.emp===id)delete x.conges[k]});S.editEmp=null;S.ficheEmp=null;render();return}
+  if(ds.editbul){S.editBul={id:ds.editbul,...d.bulletins[ds.editbul]};if(S.tab!=="sal"&&S.tab!=="emp")S.tab="sal";render();scrollTo(0,0);return}
+  if(ds.delbul){const id=ds.delbul;if(!await askConfirm("Supprimer ce bulletin ?","Supprimer"))return;change(x=>{delete x.bulletins[id]});S.editBul=null;render();return}
+  if(ds.delconge){const id=ds.delconge;change(x=>{delete x.conges[id]});return}
+  if(ds.opf){S.opFilt=ds.opf;render();return}
+  if(ds.pointe){const id=ds.pointe;change(x=>{const o=x.ops[id];if(o.pointe)delete o.pointe;else o.pointe={le:todayISO()}});return}
+  if(ds.delrel){const id=ds.delrel,r=d.releves[id];if(!await askConfirm(`Supprimer le relevé ${frDate(r.debut)} → ${frDate(r.fin)} et ses ${r.n||0} opérations ?`,"Supprimer"))return;
+    change(x=>{delete x.releves[id];for(const[k,o]of Object.entries(x.ops))if(o.releve===id)delete x.ops[k]});return}
+  if(ds.delregle){const id=ds.delregle;change(x=>{delete x.regles[id]});return}
+  const act=ds.act;if(!act)return;
+  switch(act){
+    case "closeModal":S.modal=false;S.modalPanel=null;render();break;
+    case "lockNow":lock();break;
+    case "logout":logout();break;
+    case "export":exportData();break;
+    case "import":if(PC&&window.api.importData){const tx=await window.api.importData();if(tx)importText(tx)}else $("#importFile").click();break;
+    case "openFolder":window.api.openFolder();break;
+    case "majPc":majPc();break;
+    case "newEmp":S.editEmp={contrat:"CDI",actif:true};S.ficheEmp=null;render();break;
+    case "cancelEmp":S.editEmp=null;render();break;
+    case "closeFiche":S.ficheEmp=null;S.editEmp=null;render();break;
+    case "newBul":S.editBul={mois:curK()};render();break;
+    case "cancelBul":S.editBul=null;render();break;
+    case "bulPdf":$("#bulFile").click();break;
+    case "bulCancel":S.bulImport=null;render();break;
+    case "bulSave":saveBul();break;
+    case "relPdf":$("#relFile").click();break;
+    case "relCancel":S.relImport=null;render();break;
+    case "relSave":saveRel();break;
+    case "newConge":S.editConge={};render();break;
+    case "cancelConge":S.editConge=null;render();break;
+    case "togRegles":S.showRegles=!S.showRegles;render();break;
+    case "addPole":{const v=$("#newPole").value.trim();if(!v)return;const id="p"+uid();change(x=>{x.poles[id]={nom:v,ordre:Object.keys(x.poles).length}});break}
+    case "addRegle":{const m=nk($("#newMotif").value),p=$("#newMotifPole").value;if(!m||!p)return;change(x=>{x.regles[uid()]={motif:m,pole:p};for(const o of Object.values(x.ops))if(!o.pole)o.pole=classer(x,o.lib)});toast("Règle ajoutée");break}
+    case "reclasser":{let n=0;change(x=>{for(const o of Object.values(x.ops))if(!o.pole){o.pole=classer(x,o.lib);if(o.pole)n++}});toast(n+" opération(s) classée(s)");break}
+  }
+});
+document.addEventListener("change",e=>{const t=e.target,ds=t.dataset;
+  if(t.id==="perMois"){S.month=+t.value;render();return}
+  if(t.id==="perAn"){const y=+t.value;if(y>1999&&y<2101){S.year=y;render()}return}
+  if(t.id==="importFile"){const f=t.files[0];if(f){const r=new FileReader();r.onload=()=>importText(r.result);r.readAsText(f)}t.value="";return}
+  if(t.id==="relFile"){const f=[...t.files];t.value="";if(f.length)importRel(f);return}
+  if(t.id==="bulFile"){const f=[...t.files];t.value="";if(f.length)importBul(f);return}
+  if(t.id==="opPole"){S.opPole=t.value;render();return}
+  if(ds.ca){const v=parseNum(t.value);if(Number.isNaN(v)){toast("Montant non reconnu");return}change(x=>{if(v==null)delete x.ca[ds.ca];else x.ca[ds.ca]=v});return}
+  if(ds.cpsolde){const id=ds.cpsolde,v=parseNum(t.value);if(Number.isNaN(v))return;change(x=>{const e=x.employes[id];if(v==null){delete e.cpSolde;delete e.cpAu}else{e.cpSolde=v;e.cpAu=todayISO()}});return}
+  if(ds.polenom){const id=ds.polenom,v=t.value.trim();if(v)change(x=>{x.poles[id].nom=v});return}
+  if(ds.oppole){const id=ds.oppole,p=t.value,d=D(),o=d.ops[id],tr=o.tiers||tiers(o.lib);let n=0;
+    change(x=>{x.ops[id].pole=p;if(!p||!tr)return;
+      const ex=Object.entries(x.regles).find(([,r])=>nk(r.motif)===tr);if(ex)ex[1].pole=p;else x.regles[uid()]={motif:tr,pole:p};
+      for(const[k,op]of Object.entries(x.ops))if(k!==id&&!op.pole&&(op.tiers||tiers(op.lib))===tr){op.pole=p;n++}});
+    toast(`Règle apprise : « ${tr} » → ${poleNom(D(),p)}`+(n?` (${n} autre(s) opération(s) classée(s))`:""));return}
+  if(ds.bi!=null){const r=S.bulImport.rows[+ds.bi],k=ds.bk;if(k==="ok")r.ok=t.checked;else if(k==="emp"||k==="mois")r[k]=t.value;else{const v=parseNum(t.value);r[k]=Number.isNaN(v)?null:v}
+    if(k==="ok"){const b=document.querySelector('[data-act="bulSave"]');if(b)b.textContent="Enregistrer "+S.bulImport.rows.filter(r=>r.ok).length+" bulletin(s)";t.closest("tr").classList.toggle("dim",!t.checked)}return}
+  if(t.id==="cg-debut"||t.id==="cg-fin"){const a=$("#cg-debut").value,b=$("#cg-fin").value;if(a&&b)$("#cg-jours").value=joursOuvrables(a,b);return}
+});
+document.addEventListener("input",e=>{if(e.target.id==="opText"){S.opText=e.target.value;clearTimeout(S.opT);S.opT=setTimeout(()=>{const p=e.target.selectionStart;render();const el=$("#opText");if(el){el.focus();try{el.setSelectionRange(p,p)}catch(_){}}},250)}});
+document.addEventListener("submit",e=>{const f=e.target;if(!f.closest("#app"))return;e.preventDefault();
+  if(f.id==="empForm"){const v=readForm("em-",["nom","prenom","poste","contrat","entree","finContrat","finEssai","visite","heures","taux","sortie","notes"]);if(!v.nom){toast("Le nom est obligatoire");return}
+    const o={...v,nom:v.nom.toUpperCase(),heures:parseNum(v.heures),taux:parseNum(v.taux),actif:true};for(const k of Object.keys(o))if(o[k]===""||o[k]==null||Number.isNaN(o[k]))delete o[k];
+    const id=S.editEmp.id||uid();change(x=>{const old=x.employes[id]||{};const keep={};["cpSolde","cpAu"].forEach(k=>{if(old[k]!=null)keep[k]=old[k]});x.employes[id]={...keep,...o}});S.editEmp=null;toast("Salarié enregistré");return}
+  if(f.id==="bulForm"){const emp=$("#bu-emp").value,mois=$("#bu-mois").value;if(!emp||!mois){toast("Choisissez le salarié et le mois");return}
+    const b={emp,mois};for(const[k]of BUL_F){const v=parseNum($("#bu-"+k).value);if(Number.isNaN(v)){toast("Valeur non reconnue : "+k);return}if(v!=null)b[k]=v}
+    const id=S.editBul.id||(Object.entries(D().bulletins).find(([,x])=>x.emp===emp&&x.mois===mois)||[uid()])[0];change(x=>{x.bulletins[id]={...(x.bulletins[id]&&x.bulletins[id].source?{source:x.bulletins[id].source}:{}),...b}});S.editBul=null;toast("Bulletin enregistré");return}
+  if(f.id==="congForm"){const emp=$("#cg-emp").value,debut=$("#cg-debut").value,fin=$("#cg-fin").value;if(!emp||!debut||!fin||fin<debut){toast("Vérifiez le salarié et les dates");return}
+    const j=parseNum($("#cg-jours").value);change(x=>{x.conges[uid()]={emp,debut,fin,jours:j==null||Number.isNaN(j)?joursOuvrables(debut,fin):j,note:$("#cg-note").value.trim()}});S.editConge=null;toast("Congés enregistrés");return}
+});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeMenu();if(S.modal){S.modal=false;render()}}
+  if(!(e.ctrlKey||e.metaKey)||S.locked)return;const k=e.key.toLowerCase();if(k==="l"){e.preventDefault();lock();return}
+  const a=document.activeElement;if(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))return;
+  if(k==="z"&&!e.shiftKey){e.preventDefault();undo()}else if(k==="y"||(k==="z"&&e.shiftKey)){e.preventDefault();redo()}});
+
+/* ---------- magasins ---------- */
+function closeMenu(){$("#storeMenu").hidden=true}
+function toggleStoreMenu(){const m=$("#storeMenu");if(!m.hidden){m.hidden=true;return}
+  m.innerHTML=MAGS.map(g=>`<button role="menuitem" data-store="${g.id}" aria-current="${g.id===S.store}">⌂ ${esc(g.nom)}</button>`).join("");
+  const r=$("#houseBtn").getBoundingClientRect();m.style.top=(r.bottom+window.scrollY+6)+"px";m.style.left=Math.max(8,Math.min(r.left+window.scrollX,window.innerWidth-220))+"px";m.hidden=false}
+document.addEventListener("click",e=>{if(!e.target.closest("#storeMenu,#houseBtn"))closeMenu()},true);
+function switchStore(id){if(id===S.store)return;S.store=id;S.editEmp=S.editBul=S.ficheEmp=S.bulImport=S.relImport=S.editConge=null;try{localStorage.setItem(LSP+"store",id)}catch(_){};render();toast("Magasin : "+storeNom())}
+
+/* ================= démarrage ================= */
+if(PC&&window.api.updateCheck){let last=0;const auto=()=>{if(Date.now()-last<60000||S.majBusy)return;last=Date.now();const was=majBadge();majCheck(true).then(()=>{if(majBadge()!==was)render()}).catch(()=>{})};
+  setTimeout(auto,4000);setInterval(()=>{last=0;auto()},600000);window.addEventListener("focus",auto);document.addEventListener("visibilitychange",()=>{if(!document.hidden)auto()});
+  // mise à jour automatique chaque soir à 21 h (comme GESTIME et GESMAR), jamais pendant une saisie
+  const H=21;let fait=new Date().getHours()>=H?new Date().toDateString():"",soir=false;
+  const soirGo=async()=>{const el=document.activeElement;if(S.majBusy||(el&&/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)&&!S.locked))return;if(new Date().getHours()<H){soir=false;return}
+    S.majBusy=true;try{const r=await window.api.updateCheck(majUrl());soir=r.status==="error";
+      if(r.status==="new"){await Promise.all(Object.values(SAVEQ));await new Promise(f=>setTimeout(f,2000));const x=await window.api.updateApply(majUrl());if(x.status==="done")return;soir=true}}catch(e){soir=true}
+    S.majBusy=false};
+  setInterval(()=>{const n=new Date(),dd=n.toDateString();if(n.getHours()>=H&&fait!==dd){fait=dd;soir=true}if(soir)soirGo()},60000)}
+window.GESCOUNT={sync:SYNC,store:STORE,S,parseReleve,parseBulletin,parseCsv,lignes,render,tiers,classer}; // pour le diagnostic et les tests
+showLock("");render();
+})();
+
+</script>
+</body>
+</html>

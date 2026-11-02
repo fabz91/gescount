@@ -1,0 +1,62 @@
+GESCOUNT - salaires, congés et comptes bancaires
+================================================
+
+CE QUE CONTIENT CE DOSSIER
+  index.html              toute l'application GESCOUNT
+  main.js / core.js       programme Windows : fenêtre, données du PC, mise à jour
+  preload.js              relie la page au programme (window.api)
+  config.js               réglages : adresse des mises à jour, base Supabase
+  package.json            réglages de l'installateur
+  installer.nsh           réglages complémentaires de l'installateur
+  icon.ico / icon.png     l'icône
+  pdfjs\                  lecture des relevés et bulletins PDF (pdf.js, Mozilla)
+  supabase-gescount.sql   à lancer une fois dans Supabase
+  CREER-INSTALLATEUR.bat  à double-cliquer pour fabriquer l'installateur
+
+
+1. PRÉPARER SUPABASE (une seule fois)
+  a) Menu « SQL Editor » > « New query » : collez supabase-gescount.sql puis « Run ».
+     Il crée la table « gescount » (2 lignes : bredis, clamart), RÉSERVÉE aux comptes
+     connectés. GESTIME et GESMAR ne sont pas touchés.
+  b) Menu « Authentication » > « Users » > « Add user » > « Create new user » :
+     tapez votre adresse e-mail et un mot de passe solide, cochez
+     « Auto Confirm User », puis « Create user ».
+     Faites-en un par personne qui doit ouvrir GESCOUNT.
+  c) Menu « Authentication » > « Sign In / Providers » (ou « Settings ») :
+     DÉSACTIVEZ « Allow new users to sign up », puis « Save ».
+     Ainsi personne ne peut se créer un compte tout seul.
+  Ne donnez jamais la clé « secret » / « service_role ».
+
+
+2. FABRIQUER L'INSTALLATEUR (une seule fois par PC, comme GESMAR)
+  1. Node.js LTS installé (déjà fait pour GESMAR).
+  2. Extrayez ce zip (par exemple Documents\CLAUDE CODE\GESCOUNT).
+  3. Double-cliquez sur CREER-INSTALLATEUR.bat. L'installateur apparaît dans « dist » :
+     GESCOUNT-Installateur-1.0.0.exe. Lancez-le.
+     « Windows a protégé votre ordinateur » : « Informations complémentaires »
+     puis « Exécuter quand même ».
+
+
+CONNEXION ET SÉCURITÉ
+  - Au démarrage, GESCOUNT demande l'e-mail et le mot de passe (compte du point 1b).
+  - La première connexion sur un PC doit se faire avec internet. Ensuite, sans
+    internet, le même mot de passe ouvre le logiciel et les saisies partent au retour
+    de la connexion.
+  - Verrouillage automatique après 5 minutes sans activité (2, 5, 10 ou 15 min dans
+    les Réglages). Ctrl+L verrouille tout de suite.
+  - Les données du PC (%APPDATA%\GESCOUNT\donnees) sont chiffrées : illisibles sans le
+    mot de passe. Si vous changez le mot de passe dans Supabase, GESCOUNT reprend les
+    données en ligne à la connexion suivante.
+  - Attention : un fichier « Exporter » n'est PAS chiffré (il contient les salaires) :
+    gardez-le en lieu sûr.
+
+
+MISE À JOUR SANS RÉINSTALLER
+  Réglages > Mettre à jour le logiciel, ou tout seul chaque soir à 21 h, depuis
+  https://github.com/fabz91/gescount. Les données ne sont pas touchées.
+  La pastille rouge « 1 » signale une nouvelle version.
+
+
+RACCOURCIS
+  Ctrl+L  verrouiller        Ctrl+P  imprimer       F5  recharger
+  Ctrl+Z / Ctrl+Y  annuler / rétablir (en dehors d'une case de saisie)
