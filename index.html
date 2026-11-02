@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>GESCOUNT</title>
 <script>/* version web : réglages Supabase dans config.js (à côté de index.html). Programme PC : fournis par le programme. */if(!window.api)document.write('<script src="config.js"><\/script>')</script>
-<meta name="gc-version" content="6">
+<meta name="gc-version" content="7">
 <style>
 /* Layout (repris de GESTIME) : bandeau blanc [icône + titre + magasin ⌂] [logo] [⚙], rangée de 4 grands onglets verts, sélecteur de période, puis cartes coiffées d'un bandeau rouge. */
 :root{
@@ -510,7 +510,7 @@ details.note summary{cursor:pointer;font-weight:700}
    - verrouillage automatique après quelques minutes sans activité (des employés utilisent le PC) ;
    - données du PC chiffrées (AES-GCM, clé tirée du mot de passe) : illisibles sans le mot de passe.
    ===================================================================== */
-const APP="GESCOUNT",APP_VERSION=6,TABLE="gescount",LSP="gescount.";
+const APP="GESCOUNT",APP_VERSION=7,TABLE="gescount",LSP="gescount.";
 const MOIS=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
 const MC=["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
 const MAGS=[{id:"bredis",nom:"BREDIS"},{id:"clamart",nom:"CLAMART"}];
@@ -808,6 +808,8 @@ function render(){
 }
 
 /* ---------- TABLEAU DE BORD ---------- */
+function dernierMois(d,quoi){const ks=quoi==='ops'?opsAll(d).map(o=>o.date.slice(0,7)):bulsOf(d).map(b=>b.mois);return ks.length?ks.sort().pop():null}
+function voirMois(k,txt){return k&&k!==curK()?`<button class="alink b" data-gomois="${k}" style="color:var(--green-2)">${txt||"Voir "+kLbl(k).toLowerCase()+" ›"}</button>`:""}
 function vBord(){const d=D(),k=curK(),kp=kAdd(k,-1),M=masse(d,k),Mp=masse(d,kp),ca=d.ca[k],eff=emps(d).filter(empActif).length;
   const ops=opsMois(d,k).filter(o=>!isInterne(o)),dep=-sum(ops.filter(o=>o.montant<0),o=>o.montant),rec=sum(ops.filter(o=>o.montant>0),o=>o.montant);
   const opsP=opsMois(d,kp).filter(o=>!isInterne(o)),depP=-sum(opsP.filter(o=>o.montant<0),o=>o.montant);
@@ -816,10 +818,10 @@ function vBord(){const d=D(),k=curK(),kp=kAdd(k,-1),M=masse(d,k),Mp=masse(d,kp),
   const top=polesTri(d).filter(p=>p.id!=="recet"&&p.id!=="virint").map(p=>({p,v:-(pp[p.id]||0),vp:-(ppp[p.id]||0)})).filter(x=>x.v>0||x.vp>0).sort((a,b)=>b.v-a.v).slice(0,8);
   return `${periode()}
   <div class="grid kpis">
-    <div class="kpi hl"><span class="lbl">Masse salariale (coût employeur)</span><span class="v">${M.n?e0(M.cout):"—"}</span><span class="d">${M.n?M.n+" bulletin"+(M.n>1?"s":"")+" · "+evoHtml(evo(M.cout,Mp.cout),true)+" vs "+MC[+kp.slice(5,7)-1]:"aucun bulletin pour ce mois"}</span></div>
+    <div class="kpi hl"><span class="lbl">Masse salariale (coût employeur)</span><span class="v">${M.n?e0(M.cout):"—"}</span><span class="d">${M.n?M.n+" bulletin"+(M.n>1?"s":"")+" · "+evoHtml(evo(M.cout,Mp.cout),true)+" vs "+MC[+kp.slice(5,7)-1]:"aucun bulletin pour ce mois "+voirMois(dernierMois(d,"bul"),"· dernier : "+kLbl(dernierMois(d,"bul")||curK()).toLowerCase()+" ›")}</span></div>
     <div class="kpi"><span class="lbl">Masse salariale / CA</span><span class="v">${M.n&&ca?pct(M.cout/ca):"—"}</span><span class="d">${ca?"CA HT "+e0(ca):"CA du mois à saisir dans SALAIRES"}</span></div>
     <div class="kpi"><span class="lbl">Effectif</span><span class="v">${eff}</span><span class="d">salarié${eff>1?"s":""} en poste</span></div>
-    <div class="kpi"><span class="lbl">Dépenses du mois</span><span class="v">${ops.length?e0(dep):"—"}</span><span class="d">${ops.length?evoHtml(evo(dep,depP),true)+" vs "+MC[+kp.slice(5,7)-1]+" · recettes "+e0(rec):"aucun relevé pour ce mois"}</span></div>
+    <div class="kpi"><span class="lbl">Dépenses du mois</span><span class="v">${ops.length?e0(dep):"—"}</span><span class="d">${ops.length?evoHtml(evo(dep,depP),true)+" vs "+MC[+kp.slice(5,7)-1]+" · recettes "+e0(rec):"aucun relevé pour ce mois "+voirMois(dernierMois(d,"ops"),"· dernier : "+kLbl(dernierMois(d,"ops")||curK()).toLowerCase()+" ›")}</span></div>
     <div class="kpi ${sf&&sf.v<0?"alert":""}"><span class="lbl">Solde bancaire</span><span class="v">${sf?e0(sf.v):"—"}</span><span class="d">${sf?"au "+frDate(sf.au):"importez un relevé"}</span></div>
   </div>
   <div class="grid two" style="margin-top:16px">
@@ -886,7 +888,7 @@ function vSal(){const d=D(),k=curK(),kp=kAdd(k,-1),L=bulsOf(d,k).sort((a,b)=>emp
   <div class="panel flush" style="margin-top:16px"><div class="band">Bulletins — ${MOIS[S.month]} ${S.year}</div>${L.length?`<div class="scroll"><table><thead><tr><th class="l">Salarié</th><th>Heures</th><th>Heures sup. (€)</th><th>Primes</th><th>Brut</th><th>Charges sal.</th><th>Net à payer</th><th>Charges pat.</th><th>Coût total</th><th>Évol. coût</th><th>Part de la masse</th><th></th></tr></thead><tbody>
     ${L.map(b=>{const p=P.find(x=>x.emp===b.emp);return `<tr><td class="l"><button class="alink b" data-fiche="${b.emp}">${esc(empNom(d.employes[b.emp]))}</button></td><td>${f2(b.heures)}</td><td>${f2(b.hsup)}</td><td>${f2(b.primes)}</td><td>${e2(b.brut)}</td><td>${f2(b.chargesSal)}</td><td>${e2(b.net)}</td><td>${f2(b.chargesPat)}</td><td><b>${e2(cout(b))}</b></td><td>${evoHtml(p?evo(cout(b),cout(p)):null,true)}</td><td>${M.cout?pct(cout(b)/M.cout):"—"}</td><td><button class="btn small" data-editbul="${b.id}">Modifier</button></td></tr>`}).join("")}
     <tr class="tot"><td class="l">TOTAL</td><td>${f2(sum(L,b=>b.heures||0))}</td><td>${f2(M.hsup)}</td><td>${f2(M.primes)}</td><td>${e2(M.brut)}</td><td>${f2(M.sal)}</td><td>${e2(M.net)}</td><td>${f2(M.pat)}</td><td>${e2(M.cout)}</td><td></td><td></td><td></td></tr>
-  </tbody></table></div>`:`<div class="empty-state">Aucun bulletin pour ${MOIS[S.month].toLowerCase()} ${S.year}.<br><small>« Importer des bulletins (PDF) » lit les bulletins envoyés par le comptable (un ou plusieurs par fichier).</small></div>`}</div>
+  </tbody></table></div>`:`<div class="empty-state">Aucun bulletin pour ${MOIS[S.month].toLowerCase()} ${S.year}.${dernierMois(d,"bul")?"<br>"+voirMois(dernierMois(d,"bul"),"Voir le dernier mois importé : "+kLbl(dernierMois(d,"bul")).toLowerCase()+" ›"):""}<br><small>« Importer des bulletins (PDF) » lit les bulletins envoyés par le comptable (un ou plusieurs par fichier).</small></div>`}</div>
   ${M.cout?`<div class="panel" style="margin-top:16px"><div class="band">Décomposition du coût — ${MOIS[S.month]}</div>${(()=>{const parts=[["Net versé aux salariés",M.net,C1],["Charges salariales (retenues)",Math.max(0,M.brut-M.net),"#f5a524"],["Charges patronales",M.pat,C2]],T=parts.reduce((s,p)=>s+p[1],0)||1;
       return `<div class="stack">${parts.map(p=>`<i style="width:${(p[1]/T*100).toFixed(2)}%;background:${p[2]}" title="${esc(p[0])}"></i>`).join("")}</div><div class="leg">${parts.map(p=>`<span><i style="background:${p[2]}"></i>${esc(p[0])} : <b>${e0(p[1])}</b> (${pct(p[1]/T)})</span>`).join("")}</div>`})()}</div>`:""}
   <div class="panel" style="margin-top:16px"><div class="band">Masse salariale sur 12 mois</div>${mm.some(x=>x.n)?bars(ms.map(kShort),[{n:"Coût employeur",c:C2,v:mm.map(x=>x.cout)},{n:"CA HT",c:C3,v:ms.map(x=>d.ca[x]||0)}],e0)+`<div class="scroll"><table><thead><tr><th class="l">Mois</th>${ms.map(x=>`<th>${kShort(x)}</th>`).join("")}</tr></thead><tbody><tr><td class="l">Coût</td>${mm.map(x=>`<td>${x.n?e0(x.cout):"—"}</td>`).join("")}</tr><tr><td class="l">CA HT</td>${ms.map(x=>`<td>${d.ca[x]?e0(d.ca[x]):"—"}</td>`).join("")}</tr><tr><td class="l">Masse / CA</td>${ms.map((x,i)=>`<td>${mm[i].n&&d.ca[x]?pct(mm[i].cout/d.ca[x]):"—"}</td>`).join("")}</tr></tbody></table></div>`:`<div class="empty-state small">Le graphique apparaîtra avec les premiers bulletins.</div>`}</div>`}
@@ -930,7 +932,7 @@ function vBanque(){const d=D(),k=curK(),auto=salaireAuto(d);
     ${L.map(o=>{const a=auto[o.id];return `<tr><td class="l">${frD(o.date)}</td><td class="l lib" title="${esc(o.lib)}">${esc(o.lib)}</td><td class="l"><select class="psel ${o.pole?"":"vide"}" data-oppole="${o.id}">${poleOpts(d,o.pole,"— à classer —")}</select></td><td>${o.montant<0?e2(-o.montant):""}</td><td>${o.montant>0?e2(o.montant):""}</td>
       <td class="l">${o.pointe?`<button class="pt on" data-pointe="${o.id}" title="Cliquer pour enlever le pointage">✓ ${esc(o.pointe.note||"pointé")}</button>`:a?`<span class="pt auto" title="Reconnu automatiquement : montant = net à payer du bulletin">✓ salaire ${esc(empNom(d.employes[a.emp]))}</span>`:`<button class="pt" data-pointe="${o.id}" title="Marquer comme vérifié (facture, justificatif…)">pointer</button>`}</td></tr>`}).join("")}
     <tr class="tot"><td class="l" colspan="3">TOTAL (${L.length} opérations)</td><td>${e2(deb)}</td><td>${e2(cre)}</td><td class="l">${e2(cre-deb)}</td></tr>
-  </tbody></table></div>`:`<div class="empty-state">${cnt.tout?"Aucune opération avec ce filtre.":`Aucune opération pour ${MOIS[S.month].toLowerCase()} ${S.year}.<br><small>Importez les relevés de la Banque Populaire (PDF) : les opérations sont classées par pôle automatiquement.</small>`}</div>`}</div>
+  </tbody></table></div>`:`<div class="empty-state">${cnt.tout?"Aucune opération avec ce filtre.":`Aucune opération pour ${MOIS[S.month].toLowerCase()} ${S.year}.${dernierMois(D(),"ops")?"<br>"+voirMois(dernierMois(D(),"ops"),"Voir le dernier mois importé : "+kLbl(dernierMois(D(),"ops")).toLowerCase()+" ›"):""}<br><small>Importez les relevés de la Banque Populaire (PDF) : les opérations sont classées par pôle automatiquement.</small>`}</div>`}</div>
   <div class="panel flush" style="margin-top:16px"><div class="band">Relevés importés</div>${R.length?`<div class="scroll"><table><thead><tr><th class="l">Période</th><th class="l">Fichier</th><th>Opérations</th><th>Solde début</th><th>Solde fin</th><th class="l">Contrôle</th><th></th></tr></thead><tbody>
     ${R.map(r=>`<tr><td class="l">${frDate(r.debut)} → ${frDate(r.fin)}</td><td class="l small">${esc(r.fichier||"")}</td><td>${r.n||0}</td><td>${e2(r.soldeDebut)}</td><td>${e2(r.soldeFin)}</td><td class="l">${r.controle==="ok"?'<span class="pill okp">✓ soldes justes</span>':r.controle?`<span class="pill warnp" title="Solde début + opérations ≠ solde fin">écart ${e2(r.ecart)}</span>`:'<span class="muted">soldes non lus</span>'}</td><td><button class="btn small" data-delrel="${r.id}">Supprimer</button></td></tr>`).join("")}
   </tbody></table></div>`:`<div class="empty-state small">Aucun relevé pour l'instant.</div>`}</div>
@@ -1097,9 +1099,11 @@ function saveBul(){const I=S.bulImport;if(!I)return;const R=I.rows.filter(r=>r.o
    Le PC pilote (portable de la comptable : démarrage avec Windows + connexion automatique) lit ces dossiers au démarrage puis
    toutes les 15 min, même verrouillé ou en petite icône, et la synchronisation partage tout avec les autres postes.
    Chaque fichier n'est lu qu'une fois ; ce qui est déjà dans GESCOUNT est ignoré. */
+const LECT_V=1; // à augmenter quand la lecture des PDF change : les fichiers non reconnus sont alors relus
 const DOS={releves:{nom:"relevés bancaires",ic:"🏦",busy:false,msg:"",last:null},bulletins:{nom:"bulletins de paie",ic:"📄",busy:false,msg:"",last:null}};
 const dosReg=k=>(S.poste&&S.poste[k])||null;
-function dosVus(k){try{return JSON.parse(rawLoad("gescount-"+k+"-vus")||"{}")||{}}catch(e){return{}}}
+function dosVus(k){let v={};try{v=JSON.parse(rawLoad("gescount-"+k+"-vus")||"{}")||{}}catch(e){}
+  for(const key of Object.keys(v))if(!/^importé/.test(v[key])&&!String(v[key]).endsWith("#"+LECT_V))delete v[key];return v}
 function dosJournal(){try{return JSON.parse(rawLoad("gescount-dossiers-journal")||"[]")||[]}catch(e){return[]}}
 function enregistrerReleve(f,magId){const d=STORE[magId],seen=new Set(opsAll(d).map(o=>o.date+"|"+o.montant+"|"+nk(o.lib)));
   const ops=f.ops.filter(o=>{const k=o.date+"|"+o.montant+"|"+nk(o.lib);if(seen.has(k))return false;seen.add(k);return true});
@@ -1118,34 +1122,38 @@ function enregistrerBulletins(rows,magId,fichier){const d=STORE[magId],out={n:0,
       if(Object.values(x.bulletins).some(b=>b.emp===emp&&b.mois===r.mois)){out.deja++;continue}
       const b={emp,mois:r.mois,source:fichier+(r.pages>1?" p."+r.page:""),auto:true};BUL_F.forEach(([k])=>{if(r[k]!=null&&r[k]!=="")b[k]=r[k]});x.bulletins[uid()]=b;out.n++}},magId);
   return out}
-async function dosAuto(k){if(!PC||!window.api.dossierLister||!AUTH.key)return;const D0=DOS[k];if(D0.busy)return;
+async function dosAuto(k){if(!PC||!window.api.dossierLister||!AUTH.key)return;const D0=DOS[k];if(D0.busy){D0.again=true;return} // une lecture est en cours : on relira juste après
   const P=dosReg(k);if(!P||!P.dossier||!P.magasin)return;
   D0.busy=true;D0.msg="Lecture du dossier…";if(S.modal)renderModal();
   try{const L=await window.api.dossierLister(k);
     if(L.err){D0.msg=L.err==="absent"?"⚠️ Dossier introuvable : "+L.root+" (cloud pas encore synchronisé ?)":"Dossier non choisi";return}
-    const vus=dosVus(k),J=dosJournal();let nf=0,nb=0;
+    const vus=dosVus(k),J=dosJournal();let nf=0,nb=0,nlu=0,nrej=0;
     for(const fl of L.files.sort((a,b)=>a.rel<b.rel?-1:1)){const key=fl.rel+"|"+fl.size+"|"+fl.mtime;if(vus[key])continue;
-      const nom=fl.rel.split("/").pop();
+      const nom=fl.rel.split("/").pop();nlu++;D0.msg="Lecture… "+nlu+" fichier(s)";if(S.modal&&nlu%5===0)renderModal();
       try{const data=await window.api.dossierLire(k,fl.rel);
         if(k==="releves"){let r;
           if(/\.pdf$/i.test(nom))r=parseReleve(await pdfPages(data),nom);
           else{let t=new TextDecoder("utf-8").decode(data);if(t.includes("\ufffd"))t=new TextDecoder("windows-1252").decode(data);r=parseCsv(t,nom)}
-          if(!r||!r.ops||!r.ops.length){vus[key]="pas un relevé";continue}
-          if(P.depuis&&r.fin&&r.fin.slice(0,7)<P.depuis){vus[key]="avant "+P.depuis;continue}
+          if(!r||!r.ops||!r.ops.length){vus[key]="pas un relevé#"+LECT_V;continue}
+          if(P.depuis&&r.fin&&r.fin.slice(0,7)<P.depuis){vus[key]="avant "+P.depuis+"#"+LECT_V;continue}
           const n=enregistrerReleve(r,P.magasin);nf++;nb+=n;vus[key]="importé le "+todayISO();
           J.unshift({le:new Date().toISOString(),type:k,fichier:nom,magasin:P.magasin,txt:n+" opération(s)"+(r.controle==="ok"?" ✓":r.controle?" ⚠️ écart "+e2(r.ecart):"")})}
-        else{if(!/\.pdf$/i.test(nom)){vus[key]="pas un PDF";continue}
+        else{if(!/\.pdf$/i.test(nom)){vus[key]="pas un PDF#"+LECT_V;continue}
           const pages=await pdfPages(data),rows=pages.map((items,i)=>({...parseBulletin(items,STORE[P.magasin]),page:i+1,pages:pages.length})).filter(r=>r.brut!=null||r.net!=null);
-          if(!rows.length){vus[key]="pas un bulletin";continue}
-          if(P.depuis&&rows.every(r=>r.mois&&r.mois<P.depuis)){vus[key]="avant "+P.depuis;continue}
+          if(!rows.length){vus[key]="pas un bulletin#"+LECT_V;continue}
+          if(P.depuis&&rows.every(r=>r.mois&&r.mois<P.depuis)){vus[key]="avant "+P.depuis+"#"+LECT_V;continue}
           const o=enregistrerBulletins(rows.filter(r=>!P.depuis||!r.mois||r.mois>=P.depuis),P.magasin,nom);nf++;nb+=o.n;vus[key]="importé le "+todayISO();
           J.unshift({le:new Date().toISOString(),type:k,fichier:nom,magasin:P.magasin,txt:o.n+" bulletin(s)"+(o.crees?", "+o.crees+" salarié(s) créé(s)":"")+(o.deja?", "+o.deja+" déjà présent(s)":"")+(o.aVoir?", ⚠️ "+o.aVoir+" page(s) à vérifier":"")})}}
-      catch(e){console.error(e);vus[key]="illisible"}}
+      catch(e){console.error(e);vus[key]="illisible#"+LECT_V}}
+    if((dosReg(k)||{}).magasin!==P.magasin){D0.again=true;return}
     try{rawSave("gescount-"+k+"-vus",JSON.stringify(vus));rawSave("gescount-dossiers-journal",JSON.stringify(J.slice(0,60)))}catch(e){}
-    D0.last=new Date();D0.msg=nf?`✓ ${nf} fichier(s) lu(s) : ${nb} ${k==="releves"?"opération(s)":"bulletin(s)"} ajouté(s) dans ${storeNom(P.magasin)}`:"✓ Rien de nouveau";
+    nrej=Object.values(vus).filter(v=>!/^importé/.test(v)).length;const nimp=Object.values(vus).filter(v=>/^importé/.test(v)).length;
+    D0.last=new Date();D0.stat={fichiers:L.files.length,imp:nimp,rej:nrej};
+    D0.msg=nf?`✓ ${nb} ${k==="releves"?"opération(s)":"bulletin(s)"} ajouté(s)`:(L.files.length?"✓ Rien de nouveau":"⚠️ Aucun PDF dans ce dossier");
+    if(nrej&&!nimp)D0.msg=`⚠️ ${nrej} fichier(s) lu(s), aucun reconnu : envoyez un exemple à Claude pour régler la lecture`;
     if(nf&&!S.locked)toast(D0.msg)}
   catch(e){console.error(e);D0.msg="⚠️ Lecture impossible : "+(e.message||e)}
-  finally{D0.busy=false;if(S.modal)renderModal();schedule()}}
+  finally{D0.busy=false;if(S.modal)renderModal();schedule();if(D0.again){D0.again=false;setTimeout(()=>dosAuto(k),50)}}}
 async function autoDossiers(){await dosAuto("releves");await dosAuto("bulletins")}
 setInterval(autoDossiers,15*60000);
 function dosHtml(k){const P=dosReg(k)||{},D0=DOS[k],J=dosJournal().filter(j=>j.type===k).slice(0,6);
@@ -1160,7 +1168,7 @@ function dosHtml(k){const P=dosReg(k)||{},D0=DOS[k],J=dosJournal().filter(j=>j.t
   </div>`}
 // v6 : sous le bouton, une seule ligne : dossier choisi, magasin (BREDIS / CLAMART), ✕ pour arrêter. Le clic sur le bouton ouvre directement le choix du dossier.
 function dosLigne(k){const P=dosReg(k);if(!P||!P.dossier)return"";const D0=DOS[k];
-  return `<div class="dosl"><span class="dosp" title="${esc(P.dossier)}">📁 ${esc(P.dossier.split(/[\\/]/).filter(Boolean).slice(-2).join(" › "))}</span>${MAGS.map(m=>`<button class="dosm" data-dosmag="${m.id}" data-k="${k}" aria-pressed="${P.magasin===m.id}">${m.nom}</button>`).join("")}<button class="dosx" data-dosact="stop" data-k="${k}" title="Arrêter la lecture de ce dossier" aria-label="Arrêter">✕</button></div>${/⚠️/.test(D0.msg||"")?`<div class="small neg" style="margin:-4px 0 8px">${esc(D0.msg)}</div>`:""}`}
+  return `<div class="dosl"><span class="dosp" title="${esc(P.dossier)}">📁 ${esc(P.dossier.split(/[\\/]/).filter(Boolean).slice(-2).join(" › "))}</span>${MAGS.map(m=>`<button class="dosm" data-dosmag="${m.id}" data-k="${k}" aria-pressed="${P.magasin===m.id}">${m.nom}</button>`).join("")}<button class="dosx" data-dosact="lire" data-k="${k}" title="Relire le dossier maintenant" aria-label="Relire">↻</button><button class="dosx" data-dosact="stop" data-k="${k}" title="Arrêter la lecture de ce dossier" aria-label="Arrêter">✕</button></div>${D0.msg||D0.stat?`<div class="small ${/⚠️/.test(D0.msg||"")?"neg":"muted"}" style="margin:-6px 0 10px 4px">${esc(D0.msg||"")}${D0.stat?` · ${D0.stat.fichiers} fichier(s), ${D0.stat.imp} importé(s)${D0.stat.rej?", "+D0.stat.rej+" non reconnu(s)":""}`:""}</div>`:""}`}
 function dosBandeau(k){const P=dosReg(k);if(!PC||!P||!P.dossier||!P.magasin)return"";
   return `<div class="note">🔄 Lecture automatique des ${DOS[k].nom} sur ce PC : <b>${esc(P.dossier)}</b> → ${esc(storeNom(P.magasin))}. ${esc(DOS[k].msg||"")}</div>`}
 
@@ -1236,6 +1244,7 @@ document.addEventListener("click",async e=>{
   if(t.id==="lockBtn"){lock();return}
   if(t.id==="undoBtn"){undo();return}if(t.id==="redoBtn"){redo();return}
   if(ds.per){S.month+=+ds.per;if(S.month<0){S.month=11;S.year--}if(S.month>11){S.month=0;S.year++}render();return}
+  if(ds.gomois){S.year=+ds.gomois.slice(0,4);S.month=+ds.gomois.slice(5,7)-1;render();return}
   if(ds.go){S.tab=ds.go;if(ds.gofilt)S.opFilt=ds.gofilt;S.ficheEmp=null;render();scrollTo(0,0);return}
   if(ds.theme){setTheme(ds.theme);return}
   if(ds.verrou){try{localStorage.setItem(LSP+"verrou",ds.verrou)}catch(_){};renderModal();toast("Verrouillage après "+ds.verrou+" min sans activité");return}
@@ -1245,7 +1254,8 @@ document.addEventListener("click",async e=>{
       try{await window.api.connexionAutoSet(AUTH.email,AUTH.pw);toast("Connexion automatique activée sur ce PC")}catch(e){toast(e.message||"Impossible sur ce PC")}}
     else if(!on){try{await window.api.connexionAutoSet("");toast("Connexion automatique arrêtée")}catch(e){}}
     S.poste=await window.api.posteGet();renderModal();return}
-  if(ds.dosmag){await window.api.dossierSet(ds.k,{magasin:ds.dosmag});S.poste=await window.api.posteGet();renderModal();dosAuto(ds.k);return}
+  if(ds.dosmag){const av=dosReg(ds.k);if(av&&av.magasin!==ds.dosmag)try{rawSave("gescount-"+ds.k+"-vus","{}")}catch(e){} /* autre magasin : tout le dossier est relu pour lui */
+    await window.api.dossierSet(ds.k,{magasin:ds.dosmag});S.poste=await window.api.posteGet();renderModal();dosAuto(ds.k);return}
   if(ds.dosact){const k=ds.k;
     if(ds.dosact==="choisir"){const v=await window.api.dossierChoisir(k);if(v){if(!v.magasin)await window.api.dossierSet(k,{magasin:S.store});S.poste=await window.api.posteGet();renderModal();dosAuto(k)}}
     else if(ds.dosact==="lire")dosAuto(k);
