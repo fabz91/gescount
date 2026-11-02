@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>GESCOUNT</title>
 <script>/* version web : réglages Supabase dans config.js (à côté de index.html). Programme PC : fournis par le programme. */if(!window.api)document.write('<script src="config.js"><\/script>')</script>
-<meta name="gc-version" content="1">
+<meta name="gc-version" content="2">
 <style>
 /* Layout (repris de GESTIME) : bandeau blanc [icône + titre + magasin ⌂] [logo] [⚙], rangée de 4 grands onglets verts, sélecteur de période, puis cartes coiffées d'un bandeau rouge. */
 :root{
@@ -466,7 +466,6 @@ details.note summary{cursor:pointer;font-weight:700}
     <button role="tab" data-tab="bord">Tableau de bord</button>
     <button role="tab" data-tab="emp">Salariés</button>
     <button role="tab" data-tab="sal">Salaires</button>
-    <button role="tab" data-tab="cong">Congés</button>
     <button role="tab" data-tab="banque">Banque</button>
     <button role="tab" data-tab="ana">Analyses</button>
 </nav>
@@ -503,7 +502,7 @@ details.note summary{cursor:pointer;font-weight:700}
    - verrouillage automatique après quelques minutes sans activité (des employés utilisent le PC) ;
    - données du PC chiffrées (AES-GCM, clé tirée du mot de passe) : illisibles sans le mot de passe.
    ===================================================================== */
-const APP="GESCOUNT",APP_VERSION=1,TABLE="gescount",LSP="gescount.";
+const APP="GESCOUNT",APP_VERSION=2,TABLE="gescount",LSP="gescount.";
 const MOIS=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
 const MC=["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
 const MAGS=[{id:"bredis",nom:"BREDIS"},{id:"clamart",nom:"CLAMART"}];
@@ -513,7 +512,7 @@ const REGLES0=[["URSSAF","soc"],["MALAKOFF","soc"],["AG2R","soc"],["KLESIA","soc
 
 const S={store:"bredis",tab:"bord",year:new Date().getFullYear(),month:new Date().getMonth(),modal:false,modalPanel:null,
   empFilt:"actifs",editEmp:null,ficheEmp:null,editBul:null,bulImport:null,relImport:null,opFilt:"tout",opPole:"",opText:"",showRegles:false,editConge:null,locked:true};
-try{S.tab=localStorage.getItem(LSP+"tab")||"bord";if(!["bord","emp","sal","cong","banque","ana"].includes(S.tab))S.tab="bord";S.store=localStorage.getItem(LSP+"store")||"bredis";if(!MAGS.some(m=>m.id===S.store))S.store="bredis"}catch(e){}
+try{S.tab=localStorage.getItem(LSP+"tab")||"bord";if(!["bord","emp","sal","banque","ana"].includes(S.tab))S.tab="bord";S.store=localStorage.getItem(LSP+"store")||"bredis";if(!MAGS.some(m=>m.id===S.store))S.store="bredis"}catch(e){}
 
 /* ---------- outils ---------- */
 const $=s=>document.querySelector(s);
@@ -765,7 +764,7 @@ function alertes(){const d=D(),t=todayISO(),k=curK(),out=[];
     if(e.finContrat){const j=daysBetween(t,e.finContrat);if(j<=30)out.push({tab:"emp",niv:j<0?"r":"o",txt:`${empNom(e)} : fin de ${e.contrat||"contrat"} ${j<0?"dépassée depuis le":"le"} ${frDate(e.finContrat)}${j>=0?" (dans "+j+" j)":""}`})}
     if(e.finEssai){const j=daysBetween(t,e.finEssai);if(j>=0&&j<=15)out.push({tab:"emp",niv:"o",txt:`${empNom(e)} : fin de la période d'essai le ${frDate(e.finEssai)} (dans ${j} j)`})}
     if(e.visite){const j=daysBetween(t,e.visite);if(j<=30)out.push({tab:"emp",niv:j<0?"r":"o",txt:`${empNom(e)} : visite médicale ${j<0?"à refaire (prévue le":"le"} ${frDate(e.visite)}${j<0?")":""}`})}
-    const mo=new Date().getMonth();if(mo>=2&&mo<=4){const c=cpInfo(d,e);if(c&&c.reste>0)out.push({tab:"cong",niv:mo===4?"r":"o",txt:`${empNom(e)} : ${n2.format(c.reste).replace(",00","")} jour(s) de congés à prendre avant le 31 mai`})}
+    const mo=new Date().getMonth();if(mo>=2&&mo<=4){const c=cpInfo(d,e);if(c&&c.solde>0)out.push({tab:"emp",niv:mo===4?"r":"o",txt:`${empNom(e)} : ${n2.format(c.solde).replace(",00","")} jour(s) de congés à prendre avant le 31 mai`})}
   }
   for(const b of bulsOf(d,k)){const p=bulsOf(d,kAdd(k,-1)).find(x=>x.emp===b.emp);if(p&&p.brut&&b.brut){const v=b.brut/p.brut-1;if(Math.abs(v)>=0.1)out.push({tab:"sal",niv:"o",txt:`Salaire de ${empNom(d.employes[b.emp])} : brut ${v>0?"+":"−"}${Math.abs(v*100).toFixed(0)} % par rapport à ${MOIS[+kAdd(k,-1).slice(5,7)-1].toLowerCase()}`})}}
   const nc=opsMois(d,k).filter(o=>!o.pole).length;if(nc)out.push({tab:"banque",niv:"o",txt:`${nc} opération(s) bancaire(s) de ${MOIS[S.month].toLowerCase()} non classée(s)`,act:"nonclassees"});
@@ -795,7 +794,7 @@ function render(){
   if(S.locked){$("#app").innerHTML="";renderModal();return}
   renderModal();
   const a=document.activeElement,aid=a&&a.id;
-  $("#app").innerHTML=({bord:vBord,emp:vEmp,sal:vSal,cong:vCong,banque:vBanque,ana:vAna}[S.tab]||vBord)();
+  $("#app").innerHTML=({bord:vBord,emp:vEmp,sal:vSal,banque:vBanque,ana:vAna}[S.tab]||vBord)();
   if(aid){const el=document.getElementById(aid);if(el&&el.tagName!=="BUTTON"&&!el.closest("#modalRoot"))el.focus()}
 }
 
@@ -827,9 +826,9 @@ function vEmp(){const d=D();if(S.ficheEmp&&d.employes[S.ficheEmp])return vFiche(
   return `${S.editEmp?vEmpForm():""}
   <div class="toolbar"><div class="chips">${[["actifs","En poste",nA],["sortis","Sortis",all.length-nA],["tous","Tous",all.length]].map(([v,l,c])=>`<button class="chip" data-empf="${v}" aria-pressed="${S.empFilt===v}">${l}<span class="c">${c}</span></button>`).join("")}</div>
   <button class="btn primary" data-act="newEmp">+ Nouveau salarié</button></div>
-  <div class="panel flush"><div class="band">Salariés — ${esc(storeNom())}</div>${L.length?`<div class="scroll"><table><thead><tr><th class="l">Nom</th><th class="l">Poste</th><th class="l">Contrat</th><th class="l">Entrée</th><th class="l">Ancienneté</th><th>H / sem.</th><th>Taux horaire</th><th>Dernier brut</th><th>Dernier coût</th><th class="l">À surveiller</th><th></th></tr></thead><tbody>
+  <div class="panel flush"><div class="band">Salariés — ${esc(storeNom())}</div>${L.length?`<div class="scroll"><table><thead><tr><th class="l">Nom</th><th class="l">Poste</th><th class="l">Contrat</th><th class="l">Entrée</th><th>H / sem.</th><th>Taux hor.</th><th>Dernier brut</th><th>Dernier coût</th><th>Congés rest.</th><th class="l">À surveiller</th></tr></thead><tbody>
     ${L.map(e=>{const b=lastBul(d,e.id),t=todayISO(),w=[];if(e.finContrat&&daysBetween(t,e.finContrat)<=30)w.push("fin de contrat "+frD(e.finContrat));if(e.finEssai&&daysBetween(t,e.finEssai)>=0&&daysBetween(t,e.finEssai)<=15)w.push("fin d'essai "+frD(e.finEssai));if(e.visite&&daysBetween(t,e.visite)<=30)w.push("visite médicale");
-      return `<tr class="${empActif(e)?"":"dim"}"><td class="l"><button class="alink b" data-fiche="${e.id}">${esc(empNom(e))}</button></td><td class="l">${esc(e.poste||"")}</td><td class="l">${esc(e.contrat||"")}${e.finContrat?" → "+frD(e.finContrat):""}</td><td class="l">${frDate(e.entree)}</td><td class="l">${anc(e)}</td><td>${f2(e.heures)}</td><td>${e.taux?e2(e.taux):""}</td><td>${b?e0(b.brut):"—"}</td><td>${b?e0(cout(b)):"—"}</td><td class="l">${w.length?`<span class="pill warnp">${esc(w.join(" · "))}</span>`:""}</td><td><button class="btn small" data-editemp="${e.id}">Modifier</button></td></tr>`}).join("")}
+      return `<tr class="${empActif(e)?"":"dim"}"><td class="l"><button class="alink b" data-fiche="${e.id}">${esc(empNom(e))}</button></td><td class="l">${esc(e.poste||"")}</td><td class="l">${esc(e.contrat||"")}${e.finContrat?" → "+frD(e.finContrat):""}</td><td class="l">${frDate(e.entree)}${e.entree?`<div class="small muted">${anc(e)}</div>`:""}</td><td>${f2(e.heures)}</td><td>${e.taux?e2(e.taux):""}</td><td>${b?e0(b.brut):"—"}</td><td>${b?e0(cout(b)):"—"}</td>${(()=>{const c=cpInfo(d,e);return `<td title="${c?esc("Solde du "+c.src):"Pas encore de bulletin avec les congés"}">${c?n2.format(c.solde).replace(",00","")+" j":"—"}</td>`})()}<td class="l">${w.length?`<span class="pill warnp">${esc(w.join(" · "))}</span>`:""}</td></tr>`}).join("")}
   </tbody></table></div>`:`<div class="empty-state">Aucun salarié ici.<br><small>Ajoutez-les avec « + Nouveau salarié », ou importez des bulletins de paie (onglet SALAIRES) : les salariés sont créés automatiquement.</small></div>`}</div>`}
 function vEmpForm(){const e=S.editEmp,isNew=!e.id;const v=k=>esc(e[k]??"");
   return `<div class="panel" style="margin-bottom:16px"><div class="band">${isNew?"Nouveau salarié":"Modifier : "+esc(empNom(e))}</div>
@@ -852,7 +851,7 @@ function vFiche(id){const d=D(),e={id,...d.employes[id]},L=bulsOf(d).filter(b=>b
     <div class="kpi hl"><span class="lbl">${esc(empNom(e))}</span><span class="v" style="font-size:18px">${esc(e.poste||"—")}</span><span class="d">${esc(e.contrat||"")} · entré le ${frDate(e.entree)} · ${anc(e)}</span></div>
     <div class="kpi"><span class="lbl">Dernier brut</span><span class="v">${L[0]?e0(L[0].brut):"—"}</span><span class="d">${L[0]?kLbl(L[0].mois):""}</span></div>
     <div class="kpi"><span class="lbl">Coût sur 12 mois</span><span class="v">${e0(sum(L.slice(0,12),cout))}</span><span class="d">${Math.min(12,L.length)} bulletin(s)</span></div>
-    <div class="kpi"><span class="lbl">Congés restants</span><span class="v">${c?n2.format(c.reste).replace(",00",""):"—"}</span><span class="d">${c?"jours ("+c.src+")":"pas encore connu"}</span></div>
+    <div class="kpi"><span class="lbl">Congés restants</span><span class="v">${c?n2.format(c.solde).replace(",00",""):"—"}</span><span class="d">${c?"jours ("+c.src+")":"pas encore connu"}</span></div>
   </div>
   ${last12.length>1?`<div class="panel" style="margin-top:16px"><div class="band">Évolution du salaire</div>${bars(last12.map(b=>kShort(b.mois)),[{n:"Brut",c:C1,v:last12.map(b=>b.brut||0)},{n:"Coût employeur",c:C2,v:last12.map(cout)}],e0)}</div>`:""}
   <div class="panel flush" style="margin-top:16px"><div class="band">Bulletins de paie</div>${L.length?`<div class="scroll"><table><thead><tr><th class="l">Mois</th><th>Heures</th><th>Heures sup. (€)</th><th>Primes</th><th>Brut</th><th>Évol. brut</th><th>Charges sal.</th><th>Net à payer</th><th>Charges pat.</th><th>Coût total</th><th>CP restants</th><th></th></tr></thead><tbody>
@@ -899,25 +898,6 @@ function vBulImport(){const I=S.bulImport;
     ${BUL_F.map(([k])=>`<td><input class="num" inputmode="decimal" data-bi="${i}" data-bk="${k}" value="${f2(r[k])}"></td>`).join("")}</tr>`).join("")}
   </tbody></table></div>
   <div class="row" style="margin-top:12px"><button class="btn primary" data-act="bulSave">Enregistrer ${I.rows.filter(r=>r.ok).length} bulletin(s)</button><button class="btn" data-act="bulCancel">Annuler</button></div>`}</div>`}
-
-/* ---------- CONGÉS ---------- */
-function vCong(){const d=D(),L=emps(d).filter(empActif).sort((a,b)=>empNom(a).localeCompare(empNom(b))),t=todayISO();
-  const C=Object.entries(d.conges).map(([id,c])=>({id,...c})).sort((a,b)=>a.debut<b.debut?1:-1);
-  const mo=new Date().getMonth();
-  return `${mo>=2&&mo<=4?`<div class="note warn">Les congés acquis jusqu'au 31 mai doivent être pris : vérifiez les soldes ci-dessous.</div>`:""}
-  ${S.editConge?vCongForm():""}
-  <div class="toolbar"><span></span><button class="btn primary" data-act="newConge">+ Poser des congés</button></div>
-  <div class="panel flush"><div class="band">Soldes de congés payés</div>${L.length?`<div class="scroll"><table><thead><tr><th class="l">Salarié</th><th>Acquis</th><th>Pris</th><th>Solde connu</th><th class="l">Connu au</th><th>Posés à venir</th><th>Reste à poser</th><th class="l">Corriger le solde</th></tr></thead><tbody>
-    ${L.map(e=>{const c=cpInfo(d,e);return `<tr><td class="l">${esc(empNom(e))}</td><td>${c&&c.acquis!=null?f2(c.acquis):""}</td><td>${c&&c.pris!=null?f2(c.pris):""}</td><td>${c?f2(c.solde):"—"}</td><td class="l small">${c?esc(c.src)+(c.au?" ("+frDate(c.au)+")":""):"—"}</td><td>${c&&c.poses?f2(c.poses):""}</td><td><b class="${c&&c.reste<0?"neg":""}">${c?f2(c.reste):"—"}</b></td><td class="l"><input class="num" inputmode="decimal" data-cpsolde="${e.id}" value="${f2(e.cpSolde)}" placeholder="jours" title="Solde saisi à la main (remplace celui du dernier bulletin s'il est plus récent)"></td></tr>`}).join("")}
-  </tbody></table></div>`:`<div class="empty-state">Aucun salarié en poste.</div>`}</div>
-  <div class="panel flush" style="margin-top:16px"><div class="band">Congés posés</div>${C.length?`<div class="scroll"><table><thead><tr><th class="l">Salarié</th><th class="l">Du</th><th class="l">Au</th><th>Jours ouvrables</th><th class="l">Note</th><th></th></tr></thead><tbody>
-    ${C.map(c=>`<tr class="${c.fin<t?"dim":""}"><td class="l">${esc(empNom(d.employes[c.emp]))}</td><td class="l">${frDate(c.debut)}</td><td class="l">${frDate(c.fin)}</td><td>${f2(c.jours)}</td><td class="l">${esc(c.note||"")}</td><td><button class="btn small" data-delconge="${c.id}">Supprimer</button></td></tr>`).join("")}
-  </tbody></table></div>`:`<div class="empty-state small">Aucun congé posé.</div>`}</div>`}
-function vCongForm(){const c=S.editConge;return `<div class="panel" style="margin-bottom:16px"><div class="band">Poser des congés</div><form id="congForm" class="form">
-  <label>Salarié<select id="cg-emp" required><option value="">— choisir —</option>${empOpts(c.emp)}</select></label><label>Du<input id="cg-debut" type="date" value="${esc(c.debut||"")}" required></label><label>Au (inclus)<input id="cg-fin" type="date" value="${esc(c.fin||"")}" required></label>
-  <label>Jours ouvrables<input id="cg-jours" inputmode="decimal" value="${f2(c.jours)}" placeholder="calculé"></label><label class="wide">Note<input id="cg-note" value="${esc(c.note||"")}"></label>
-  <div class="row wide"><button class="btn primary" type="submit">Enregistrer</button><button class="btn" type="button" data-act="cancelConge">Annuler</button></div>
-  <div class="wide note">Jours ouvrables : du lundi au samedi (les dimanches ne comptent pas). Corrigez à la main pour un jour férié.</div></form></div>`}
 
 /* ---------- BANQUE ---------- */
 function poleOpts(d,sel,vide){return (vide?`<option value="">${esc(vide)}</option>`:"")+polesTri(d).map(p=>`<option value="${p.id}" ${p.id===sel?"selected":""}>${esc(p.nom)}</option>`).join("")}
@@ -1178,7 +1158,6 @@ document.addEventListener("click",async e=>{
     change(x=>{delete x.employes[id];for(const[k,b]of Object.entries(x.bulletins))if(b.emp===id)delete x.bulletins[k];for(const[k,c]of Object.entries(x.conges))if(c.emp===id)delete x.conges[k]});S.editEmp=null;S.ficheEmp=null;render();return}
   if(ds.editbul){S.editBul={id:ds.editbul,...d.bulletins[ds.editbul]};if(S.tab!=="sal"&&S.tab!=="emp")S.tab="sal";render();scrollTo(0,0);return}
   if(ds.delbul){const id=ds.delbul;if(!await askConfirm("Supprimer ce bulletin ?","Supprimer"))return;change(x=>{delete x.bulletins[id]});S.editBul=null;render();return}
-  if(ds.delconge){const id=ds.delconge;change(x=>{delete x.conges[id]});return}
   if(ds.opf){S.opFilt=ds.opf;render();return}
   if(ds.pointe){const id=ds.pointe;change(x=>{const o=x.ops[id];if(o.pointe)delete o.pointe;else o.pointe={le:todayISO()}});return}
   if(ds.delrel){const id=ds.delrel,r=d.releves[id];if(!await askConfirm(`Supprimer le relevé ${frDate(r.debut)} → ${frDate(r.fin)} et ses ${r.n||0} opérations ?`,"Supprimer"))return;
@@ -1204,8 +1183,6 @@ document.addEventListener("click",async e=>{
     case "relPdf":$("#relFile").click();break;
     case "relCancel":S.relImport=null;render();break;
     case "relSave":saveRel();break;
-    case "newConge":S.editConge={};render();break;
-    case "cancelConge":S.editConge=null;render();break;
     case "togRegles":S.showRegles=!S.showRegles;render();break;
     case "addPole":{const v=$("#newPole").value.trim();if(!v)return;const id="p"+uid();change(x=>{x.poles[id]={nom:v,ordre:Object.keys(x.poles).length}});break}
     case "addRegle":{const m=nk($("#newMotif").value),p=$("#newMotifPole").value;if(!m||!p)return;change(x=>{x.regles[uid()]={motif:m,pole:p};for(const o of Object.values(x.ops))if(!o.pole)o.pole=classer(x,o.lib)});toast("Règle ajoutée");break}
@@ -1220,7 +1197,6 @@ document.addEventListener("change",e=>{const t=e.target,ds=t.dataset;
   if(t.id==="bulFile"){const f=[...t.files];t.value="";if(f.length)importBul(f);return}
   if(t.id==="opPole"){S.opPole=t.value;render();return}
   if(ds.ca){const v=parseNum(t.value);if(Number.isNaN(v)){toast("Montant non reconnu");return}change(x=>{if(v==null)delete x.ca[ds.ca];else x.ca[ds.ca]=v});return}
-  if(ds.cpsolde){const id=ds.cpsolde,v=parseNum(t.value);if(Number.isNaN(v))return;change(x=>{const e=x.employes[id];if(v==null){delete e.cpSolde;delete e.cpAu}else{e.cpSolde=v;e.cpAu=todayISO()}});return}
   if(ds.polenom){const id=ds.polenom,v=t.value.trim();if(v)change(x=>{x.poles[id].nom=v});return}
   if(ds.oppole){const id=ds.oppole,p=t.value,d=D(),o=d.ops[id],tr=o.tiers||tiers(o.lib);let n=0;
     change(x=>{x.ops[id].pole=p;if(!p||!tr)return;
@@ -1229,7 +1205,6 @@ document.addEventListener("change",e=>{const t=e.target,ds=t.dataset;
     toast(`Règle apprise : « ${tr} » → ${poleNom(D(),p)}`+(n?` (${n} autre(s) opération(s) classée(s))`:""));return}
   if(ds.bi!=null){const r=S.bulImport.rows[+ds.bi],k=ds.bk;if(k==="ok")r.ok=t.checked;else if(k==="emp"||k==="mois")r[k]=t.value;else{const v=parseNum(t.value);r[k]=Number.isNaN(v)?null:v}
     if(k==="ok"){const b=document.querySelector('[data-act="bulSave"]');if(b)b.textContent="Enregistrer "+S.bulImport.rows.filter(r=>r.ok).length+" bulletin(s)";t.closest("tr").classList.toggle("dim",!t.checked)}return}
-  if(t.id==="cg-debut"||t.id==="cg-fin"){const a=$("#cg-debut").value,b=$("#cg-fin").value;if(a&&b)$("#cg-jours").value=joursOuvrables(a,b);return}
 });
 document.addEventListener("input",e=>{if(e.target.id==="opText"){S.opText=e.target.value;clearTimeout(S.opT);S.opT=setTimeout(()=>{const p=e.target.selectionStart;render();const el=$("#opText");if(el){el.focus();try{el.setSelectionRange(p,p)}catch(_){}}},250)}});
 document.addEventListener("submit",e=>{const f=e.target;if(!f.closest("#app"))return;e.preventDefault();
@@ -1239,8 +1214,6 @@ document.addEventListener("submit",e=>{const f=e.target;if(!f.closest("#app"))re
   if(f.id==="bulForm"){const emp=$("#bu-emp").value,mois=$("#bu-mois").value;if(!emp||!mois){toast("Choisissez le salarié et le mois");return}
     const b={emp,mois};for(const[k]of BUL_F){const v=parseNum($("#bu-"+k).value);if(Number.isNaN(v)){toast("Valeur non reconnue : "+k);return}if(v!=null)b[k]=v}
     const id=S.editBul.id||(Object.entries(D().bulletins).find(([,x])=>x.emp===emp&&x.mois===mois)||[uid()])[0];change(x=>{x.bulletins[id]={...(x.bulletins[id]&&x.bulletins[id].source?{source:x.bulletins[id].source}:{}),...b}});S.editBul=null;toast("Bulletin enregistré");return}
-  if(f.id==="congForm"){const emp=$("#cg-emp").value,debut=$("#cg-debut").value,fin=$("#cg-fin").value;if(!emp||!debut||!fin||fin<debut){toast("Vérifiez le salarié et les dates");return}
-    const j=parseNum($("#cg-jours").value);change(x=>{x.conges[uid()]={emp,debut,fin,jours:j==null||Number.isNaN(j)?joursOuvrables(debut,fin):j,note:$("#cg-note").value.trim()}});S.editConge=null;toast("Congés enregistrés");return}
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeMenu();if(S.modal){S.modal=false;render()}}
   if(!(e.ctrlKey||e.metaKey)||S.locked)return;const k=e.key.toLowerCase();if(k==="l"){e.preventDefault();lock();return}
