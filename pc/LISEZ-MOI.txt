@@ -32,7 +32,7 @@ CE QUE CONTIENT CE DOSSIER
   1. Node.js LTS installé (déjà fait pour GESMAR).
   2. Extrayez ce zip (par exemple Documents\CLAUDE CODE\GESCOUNT).
   3. Double-cliquez sur CREER-INSTALLATEUR.bat. L'installateur apparaît dans « dist » :
-     GESCOUNT-Installateur-1.0.0.exe. Lancez-le.
+     GESCOUNT-Installateur-1.1.0.exe. Lancez-le.
      « Windows a protégé votre ordinateur » : « Informations complémentaires »
      puis « Exécuter quand même ».
 
@@ -49,6 +49,30 @@ CONNEXION ET SÉCURITÉ
     données en ligne à la connexion suivante.
   - Attention : un fichier « Exporter » n'est PAS chiffré (il contient les salaires) :
     gardez-le en lieu sûr.
+
+
+GESCOUNT EN FOND (version 3 et plus, nécessite ce kit)
+  Une petite icône GESCOUNT s'affiche en bas à droite, à côté du cloud et du Wi-Fi.
+  Fermer la fenêtre (croix) ne quitte pas GESCOUNT : il continue en fond.
+  Clic sur l'icône : rouvrir. Clic droit : Ouvrir, Verrouiller, Quitter GESCOUNT.
+  Verrouillé ou en fond, GESCOUNT continue de synchroniser et de lire les relevés.
+
+  Réglages > Ce PC (chaque PC et chaque session Windows a ses propres réglages) :
+  - « Ouvrir GESCOUNT au démarrage de Windows » : il s'ouvre tout seul en petite icône
+    à l'ouverture de la session.
+  - « Connexion automatique » : le mot de passe est gardé par Windows, lié à cette
+    session ; GESCOUNT se connecte seul au démarrage et travaille en fond, écran
+    verrouillé. À mettre SEULEMENT sur une session Windows protégée par un mot de
+    passe où les employés n'ont pas accès (par exemple le portable de la comptable),
+    JAMAIS sur le PC du magasin.
+  - « Dossier des relevés » : choisissez le dossier du cloud où arrivent les relevés
+    Banque Populaire, puis le magasin (BREDIS ou CLAMART). GESCOUNT le lit au démarrage
+    puis toutes les 15 minutes. Chaque relevé n'est importé qu'une fois ; les fichiers
+    ne sont jamais modifiés.
+
+  Exemple, portable de la comptable : installer GESCOUNT dans la session Clamart ET
+  dans la session Bredis. Dans chacune : démarrage Oui, connexion automatique Oui,
+  dossier des relevés de cette session -> le magasin correspondant.
 
 
 MISE À JOUR SANS RÉINSTALLER
