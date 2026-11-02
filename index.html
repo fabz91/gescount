@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>GESCOUNT</title>
 <script>/* version web : réglages Supabase dans config.js (à côté de index.html). Programme PC : fournis par le programme. */if(!window.api)document.write('<script src="config.js"><\/script>')</script>
-<meta name="gc-version" content="3">
+<meta name="gc-version" content="4">
 <style>
 /* Layout (repris de GESTIME) : bandeau blanc [icône + titre + magasin ⌂] [logo] [⚙], rangée de 4 grands onglets verts, sélecteur de période, puis cartes coiffées d'un bandeau rouge. */
 :root{
@@ -503,7 +503,7 @@ details.note summary{cursor:pointer;font-weight:700}
    - verrouillage automatique après quelques minutes sans activité (des employés utilisent le PC) ;
    - données du PC chiffrées (AES-GCM, clé tirée du mot de passe) : illisibles sans le mot de passe.
    ===================================================================== */
-const APP="GESCOUNT",APP_VERSION=3,TABLE="gescount",LSP="gescount.";
+const APP="GESCOUNT",APP_VERSION=4,TABLE="gescount",LSP="gescount.";
 const MOIS=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
 const MC=["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
 const MAGS=[{id:"bredis",nom:"BREDIS"},{id:"clamart",nom:"CLAMART"}];
@@ -617,7 +617,7 @@ async function login(email,pw){
   }
   const first=!AUTH.key;AUTH.email=email;AUTH.pw=pw;AUTH.key=key;
   if(online){setSession(online);rawSave("gescount-compte",JSON.stringify({email,check:await encTxt(key,"GESCOUNT-OK")}))}
-  if(first){await loadLocal();SYNC.start();setTimeout(()=>relAuto(),3000)}
+  if(first){await loadLocal();SYNC.start();setTimeout(()=>autoDossiers(),3000)}
   else if(!AUTH.token)refreshSession().then(ok=>{if(ok)SYNC.start()});
 }
 async function unlock(email,pw){email=String(email||"").trim().toLowerCase();
@@ -866,6 +866,7 @@ function vSal(){const d=D(),k=curK(),kp=kAdd(k,-1),L=bulsOf(d,k).sort((a,b)=>emp
   const actifs=emps(d).filter(empActif),manquants=L.length?actifs.filter(e=>!L.some(b=>b.emp===e.id)):[];
   return `${periode(`<span class="sp"></span><button class="btn primary" data-act="bulPdf">📄 Importer des bulletins (PDF)</button><button class="btn" data-act="newBul">+ Bulletin à la main</button>`)}
   <input type="file" id="bulFile" accept="application/pdf,.pdf" multiple hidden>
+  ${dosBandeau("bulletins")}
   ${S.bulImport?vBulImport():""}${S.editBul?vBulForm():""}
   <div class="grid kpis">
     <div class="kpi hl"><span class="lbl">Masse salariale (coût employeur)</span><span class="v">${e0(M.cout)}</span><span class="d">${evoHtml(evo(M.cout,masse(d,kp).cout),true)} vs ${MC[+kp.slice(5,7)-1]}</span></div>
@@ -913,7 +914,7 @@ function vBanque(){const d=D(),k=curK(),auto=salaireAuto(d);
   const deb=-sum(L.filter(o=>o.montant<0),o=>o.montant),cre=sum(L.filter(o=>o.montant>0),o=>o.montant);
   return `${periode(`<span class="sp"></span><button class="btn primary" data-act="relPdf">🏦 Importer des relevés (PDF ou CSV)</button>`)}
   <input type="file" id="relFile" accept="application/pdf,.pdf,.csv,text/csv,.txt" multiple hidden>
-  ${PC&&S.poste&&S.poste.releves&&S.poste.releves.dossier&&S.poste.releves.magasin?`<div class="note">🔄 Lecture automatique sur ce PC : dossier <b>${esc(S.poste.releves.dossier)}</b> → ${esc(storeNom(S.poste.releves.magasin))}. ${esc(REL.msg||"")}</div>`:""}
+  ${dosBandeau("releves")}
   ${S.relImport?vRelImport():""}
   <div class="panel flush"><div class="band">Opérations — ${MOIS[S.month]} ${S.year}</div>
   <div class="opbar"><div class="chips">${[["tout","Toutes"],["nonclassees","Non classées"],["dep","Dépenses"],["rec","Recettes"],["nonpointees","Non pointées"]].map(([v,l])=>`<button class="chip" data-opf="${v}" aria-pressed="${S.opFilt===v}">${l}<span class="c">${cnt[v]}</span></button>`).join("")}</div>
@@ -1031,7 +1032,7 @@ function parseCsv(txt,fichier){const lines=txt.replace(/^﻿/,"").split(/\r?\n/)
     ops.push({date,lib:(c[iL]||"").replace(/\s+/g," ").slice(0,160),montant:Math.round(m*100)/100,n:n++})}
   const ds=ops.map(o=>o.date).sort();return{fichier,ops,debut:ds[0]||null,fin:ds[ds.length-1]||null,soldeDebut:null,soldeFin:null}}
 
-function parseBulletin(items){const L=lignes(items),T=L.map(l=>l.text).join("\n");
+function parseBulletin(items,dd){const L=lignes(items),T=L.map(l=>l.text).join("\n");
   const nums=l=>l.t.filter(t=>/^-?\d{1,3}(?:[ .  ]?\d{3})*,\d{2,4}$/.test(t.s)).map(t=>amt(t.s.replace(/,(\d{2})\d+$/,",$1")));
   const line=re=>L.find(l=>re.test(l.text)&&nums(l).length);
   const last=re=>{const l=line(re);if(!l)return null;const v=nums(l);return v[v.length-1]};
@@ -1052,7 +1053,7 @@ function parseBulletin(items){const L=lignes(items),T=L.map(l=>l.text).join("\n"
   for(const l of L){const i=l.t.findIndex(t=>RN.test(t.s)||(/^(m\.|mr\.?|mme|mlle|monsieur|madame)$/i.test(t.s)));if(i<0)continue;
     let n=RN.test(l.t[i].s)?l.t[i].s.replace(RN,""):"";for(let j=i+1;j<l.t.length&&n.split(" ").length<3&&l.t[j].x-(l.t[j-1].x+l.t[j-1].w)<12;j++)n+=" "+l.t[j].s;
     r.nomLu=n.replace(/\s+/g," ").trim().slice(0,60);if(r.nomLu)break}
-  const NT=" "+nk(T)+" ";const E=emps().filter(e=>e.nom&&NT.includes(" "+nk(e.nom)+" "));
+  const NT=" "+nk(T)+" ";const E=emps(dd).filter(e=>e.nom&&NT.includes(" "+nk(e.nom)+" "));
   if(E.length){const best=E.find(e=>e.prenom&&NT.includes(" "+nk(e.prenom)+" "))||E[0];r.emp=best.id}
   r.trouve=["brut","net"].every(k=>r[k]!=null);return r}
 
@@ -1084,12 +1085,15 @@ function saveBul(){const I=S.bulImport;if(!I)return;const R=I.rows.filter(r=>r.o
       const b={emp,mois:r.mois,source:r.fichier};BUL_F.forEach(([k])=>{if(r[k]!=null&&r[k]!=="")b[k]=r[k]});d.bulletins[id]=b;n++}});
   const k=R[0].mois;S.year=+k.slice(0,4);S.month=+k.slice(5,7)-1;S.bulImport=null;toast(n+" bulletin(s) enregistré(s)");render()}
 
-/* ================= v3 : lecture automatique d'un dossier de relevés (PC) =================
-   Réglée sur chaque PC / session Windows (Réglages > Ce PC). GESCOUNT lit le dossier au démarrage puis toutes les 15 min,
-   même verrouillé ou rangé en petite icône. Chaque nouveau fichier n'est lu qu'une fois ; les opérations déjà présentes sont ignorées. */
-const REL={busy:false,msg:"",last:null};
-function relVus(){try{return JSON.parse(rawLoad("gescount-releves-vus")||"{}")||{}}catch(e){return{}}}
-function relJournal(){try{return JSON.parse(rawLoad("gescount-releves-journal")||"[]")||[]}catch(e){return[]}}
+/* ================= v3-v4 : lecture automatique de dossiers (PC pilote) =================
+   Réglés sur chaque PC / session Windows (Réglages > Ce PC) : « releves » (relevés bancaires) et « bulletins » (bulletins de paie).
+   Le PC pilote (portable de la comptable : démarrage avec Windows + connexion automatique) lit ces dossiers au démarrage puis
+   toutes les 15 min, même verrouillé ou en petite icône, et la synchronisation partage tout avec les autres postes.
+   Chaque fichier n'est lu qu'une fois ; ce qui est déjà dans GESCOUNT est ignoré. */
+const DOS={releves:{nom:"relevés bancaires",ic:"🏦",busy:false,msg:"",last:null},bulletins:{nom:"bulletins de paie",ic:"📄",busy:false,msg:"",last:null}};
+const dosReg=k=>(S.poste&&S.poste[k])||null;
+function dosVus(k){try{return JSON.parse(rawLoad("gescount-"+k+"-vus")||"{}")||{}}catch(e){return{}}}
+function dosJournal(){try{return JSON.parse(rawLoad("gescount-dossiers-journal")||"[]")||[]}catch(e){return[]}}
 function enregistrerReleve(f,magId){const d=STORE[magId],seen=new Set(opsAll(d).map(o=>o.date+"|"+o.montant+"|"+nk(o.lib)));
   const ops=f.ops.filter(o=>{const k=o.date+"|"+o.montant+"|"+nk(o.lib);if(seen.has(k))return false;seen.add(k);return true});
   const deja=Object.values(d.releves).some(x=>x.fichier===f.fichier&&x.debut===f.debut&&x.fin===f.fin);
@@ -1097,38 +1101,58 @@ function enregistrerReleve(f,magId){const d=STORE[magId],seen=new Set(opsAll(d).
   change(x=>{const rid=uid();x.releves[rid]={fichier:f.fichier,debut:f.debut,fin:f.fin,soldeDebut:f.soldeDebut,soldeFin:f.soldeFin,controle:f.controle||null,ecart:f.ecart??null,n:ops.length,importeLe:todayISO(),auto:true};
     for(const o of ops)x.ops[uid()]={date:o.date,lib:o.lib,montant:o.montant,pole:classer(x,o.lib),tiers:tiers(o.lib),releve:rid,n:o.n}},magId);
   return ops.length}
-async function relAuto(){if(!PC||!window.api.relevesLister||!AUTH.key||REL.busy)return;
-  const P=S.poste&&S.poste.releves;if(!P||!P.dossier||!P.magasin)return;
-  REL.busy=true;REL.msg="Lecture du dossier…";if(S.modal)renderModal();
-  try{const L=await window.api.relevesLister();
-    if(L.err){REL.msg=L.err==="absent"?"⚠️ Dossier introuvable : "+L.root+" (cloud pas encore synchronisé ?)":"Dossier non choisi";return}
-    const vus=relVus(),J=relJournal();let nf=0,nops=0;
+// Bulletins : salarié reconnu par son nom (sinon créé), mois lu sur la page ; un bulletin déjà présent (même salarié, même mois) n'est pas remplacé.
+function enregistrerBulletins(rows,magId,fichier){const d=STORE[magId],out={n:0,crees:0,deja:0,aVoir:0};const crees={};
+  const ok=rows.filter(r=>(r.brut!=null||r.net!=null)&&r.mois);out.aVoir=rows.length-ok.length;if(!ok.length)return out;
+  change(x=>{for(const r of ok){let emp=r.emp&&x.employes[r.emp]?r.emp:null;
+      if(!emp&&r.nomLu){const key=nk(r.nomLu);emp=crees[key]||Object.entries(x.employes).find(([,e])=>nk(empNom(e))===key)?.[0];
+        if(!emp){const w=r.nomLu.split(" ");emp=crees[key]=uid();x.employes[emp]={nom:(w[0]||"").toUpperCase(),prenom:w.slice(1).join(" "),contrat:"CDI",actif:true};out.crees++}}
+      if(!emp){out.aVoir++;continue}
+      if(Object.values(x.bulletins).some(b=>b.emp===emp&&b.mois===r.mois)){out.deja++;continue}
+      const b={emp,mois:r.mois,source:fichier+(r.pages>1?" p."+r.page:""),auto:true};BUL_F.forEach(([k])=>{if(r[k]!=null&&r[k]!=="")b[k]=r[k]});x.bulletins[uid()]=b;out.n++}},magId);
+  return out}
+async function dosAuto(k){if(!PC||!window.api.dossierLister||!AUTH.key)return;const D0=DOS[k];if(D0.busy)return;
+  const P=dosReg(k);if(!P||!P.dossier||!P.magasin)return;
+  D0.busy=true;D0.msg="Lecture du dossier…";if(S.modal)renderModal();
+  try{const L=await window.api.dossierLister(k);
+    if(L.err){D0.msg=L.err==="absent"?"⚠️ Dossier introuvable : "+L.root+" (cloud pas encore synchronisé ?)":"Dossier non choisi";return}
+    const vus=dosVus(k),J=dosJournal();let nf=0,nb=0;
     for(const fl of L.files.sort((a,b)=>a.rel<b.rel?-1:1)){const key=fl.rel+"|"+fl.size+"|"+fl.mtime;if(vus[key])continue;
-      const nom=fl.rel.split("/").pop();let r=null;
-      try{const data=await window.api.relevesLire(fl.rel);
-        if(/\.pdf$/i.test(nom)){r=parseReleve(await pdfPages(data),nom)}
-        else{let t=new TextDecoder("utf-8").decode(data);if(t.includes("\ufffd"))t=new TextDecoder("windows-1252").decode(data);r=parseCsv(t,nom)}}
-      catch(e){console.error(e);vus[key]="illisible";continue}
-      if(!r||!r.ops||!r.ops.length){vus[key]="pas un relevé";continue}
-      if(P.depuis&&r.fin&&r.fin.slice(0,7)<P.depuis){vus[key]="avant le "+P.depuis;continue}
-      const n=enregistrerReleve(r,P.magasin);vus[key]="importé le "+todayISO();nf++;nops+=n;
-      J.unshift({le:new Date().toISOString(),fichier:nom,magasin:P.magasin,debut:r.debut,fin:r.fin,n,controle:r.controle||null,ecart:r.ecart??null})}
-    rawSave("gescount-releves-vus",JSON.stringify(vus));rawSave("gescount-releves-journal",JSON.stringify(J.slice(0,40)));
-    REL.last=new Date();REL.msg=nf?`✓ ${nf} relevé(s) importé(s) (${nops} opérations) dans ${storeNom(P.magasin)}`:"✓ Aucun nouveau relevé";
-    if(nf&&!S.locked)toast(REL.msg)}
-  catch(e){console.error(e);REL.msg="⚠️ Lecture impossible : "+(e.message||e)}
-  finally{REL.busy=false;if(S.modal)renderModal();schedule()}}
-setInterval(()=>relAuto(),15*60000);
-function relRegHtml(){const P=(S.poste&&S.poste.releves)||{},J=relJournal().slice(0,6);
-  return `<div class="rinfo">GESCOUNT lit ce dossier au démarrage puis toutes les 15 minutes, même verrouillé ou en petite icône, et range chaque nouveau relevé dans le magasin choisi. Les fichiers ne sont jamais modifiés.
+      const nom=fl.rel.split("/").pop();
+      try{const data=await window.api.dossierLire(k,fl.rel);
+        if(k==="releves"){let r;
+          if(/\.pdf$/i.test(nom))r=parseReleve(await pdfPages(data),nom);
+          else{let t=new TextDecoder("utf-8").decode(data);if(t.includes("\ufffd"))t=new TextDecoder("windows-1252").decode(data);r=parseCsv(t,nom)}
+          if(!r||!r.ops||!r.ops.length){vus[key]="pas un relevé";continue}
+          if(P.depuis&&r.fin&&r.fin.slice(0,7)<P.depuis){vus[key]="avant "+P.depuis;continue}
+          const n=enregistrerReleve(r,P.magasin);nf++;nb+=n;vus[key]="importé le "+todayISO();
+          J.unshift({le:new Date().toISOString(),type:k,fichier:nom,magasin:P.magasin,txt:n+" opération(s)"+(r.controle==="ok"?" ✓":r.controle?" ⚠️ écart "+e2(r.ecart):"")})}
+        else{if(!/\.pdf$/i.test(nom)){vus[key]="pas un PDF";continue}
+          const pages=await pdfPages(data),rows=pages.map((items,i)=>({...parseBulletin(items,STORE[P.magasin]),page:i+1,pages:pages.length})).filter(r=>r.brut!=null||r.net!=null);
+          if(!rows.length){vus[key]="pas un bulletin";continue}
+          if(P.depuis&&rows.every(r=>r.mois&&r.mois<P.depuis)){vus[key]="avant "+P.depuis;continue}
+          const o=enregistrerBulletins(rows.filter(r=>!P.depuis||!r.mois||r.mois>=P.depuis),P.magasin,nom);nf++;nb+=o.n;vus[key]="importé le "+todayISO();
+          J.unshift({le:new Date().toISOString(),type:k,fichier:nom,magasin:P.magasin,txt:o.n+" bulletin(s)"+(o.crees?", "+o.crees+" salarié(s) créé(s)":"")+(o.deja?", "+o.deja+" déjà présent(s)":"")+(o.aVoir?", ⚠️ "+o.aVoir+" page(s) à vérifier":"")})}}
+      catch(e){console.error(e);vus[key]="illisible"}}
+    try{rawSave("gescount-"+k+"-vus",JSON.stringify(vus));rawSave("gescount-dossiers-journal",JSON.stringify(J.slice(0,60)))}catch(e){}
+    D0.last=new Date();D0.msg=nf?`✓ ${nf} fichier(s) lu(s) : ${nb} ${k==="releves"?"opération(s)":"bulletin(s)"} ajouté(s) dans ${storeNom(P.magasin)}`:"✓ Rien de nouveau";
+    if(nf&&!S.locked)toast(D0.msg)}
+  catch(e){console.error(e);D0.msg="⚠️ Lecture impossible : "+(e.message||e)}
+  finally{D0.busy=false;if(S.modal)renderModal();schedule()}}
+async function autoDossiers(){await dosAuto("releves");await dosAuto("bulletins")}
+setInterval(autoDossiers,15*60000);
+function dosHtml(k){const P=dosReg(k)||{},D0=DOS[k],J=dosJournal().filter(j=>j.type===k).slice(0,6);
+  return `<div class="rinfo">GESCOUNT lit ce dossier au démarrage puis toutes les 15 minutes, même verrouillé ou en petite icône, et range chaque nouveau ${k==="releves"?"relevé":"bulletin"} dans le magasin choisi${k==="bulletins"?" (salarié reconnu par son nom, ou créé)":""}. Les fichiers ne sont jamais modifiés.
     <div style="margin:8px 0"><b>Dossier :</b> ${P.dossier?esc(P.dossier):"<i>aucun</i>"}</div>
-    <div class="row" style="margin-bottom:8px"><button class="btn small" data-act="relDossier">${P.dossier?"Changer de dossier":"Choisir le dossier"}</button>${P.dossier?`<button class="btn small" data-act="relLire" ${REL.busy?"disabled":""}>Lire maintenant</button><button class="btn small" data-act="relStop">Arrêter</button>`:""}</div>
-    ${P.dossier?`<div class="rlbl">Les relevés de ce dossier vont dans :</div><div class="rtheme">${MAGS.map(m=>`<button data-relmag="${m.id}" aria-pressed="${P.magasin===m.id}">${m.nom}</button>`).join("")}</div>
-    <div class="rlbl">Importer les relevés à partir de (vide = tous) :</div><input type="month" id="relDepuis" value="${esc(P.depuis||"")}" style="width:100%">
+    <div class="row" style="margin-bottom:8px"><button class="btn small" data-dosact="choisir" data-k="${k}">${P.dossier?"Changer de dossier":"Choisir le dossier"}</button>${P.dossier?`<button class="btn small" data-dosact="lire" data-k="${k}" ${D0.busy?"disabled":""}>Lire maintenant</button><button class="btn small" data-dosact="stop" data-k="${k}">Arrêter</button>`:""}</div>
+    ${P.dossier?`<div class="rlbl">Ce qui est lu dans ce dossier va dans :</div><div class="rtheme">${MAGS.map(m=>`<button data-dosmag="${m.id}" data-k="${k}" aria-pressed="${P.magasin===m.id}">${m.nom}</button>`).join("")}</div>
+    <div class="rlbl">À partir du mois de (vide = tout) :</div><input type="month" data-dosdepuis="${k}" value="${esc(P.depuis||"")}" style="width:100%">
     ${!P.magasin?`<div class="neg" style="margin-top:6px">Choisissez le magasin pour lancer la lecture.</div>`:""}
-    <div style="margin-top:8px">${esc(REL.msg||"")}${REL.last?` <span class="small muted">(${REL.last.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})})</span>`:""}</div>
-    ${J.length?`<div class="rlbl">Derniers relevés importés :</div>${J.map(j=>`<div class="small">${frDate(j.le.slice(0,10))} · ${esc(storeNom(j.magasin))} · ${esc(j.fichier)} · ${j.n} op. ${j.controle==="ok"?"✓":j.controle?"⚠️ écart "+e2(j.ecart):""}</div>`).join("")}`:""}`:""}
+    <div style="margin-top:8px">${esc(D0.msg||"")}${D0.last?` <span class="small muted">(${D0.last.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})})</span>`:""}</div>
+    ${J.length?`<div class="rlbl">Derniers fichiers lus :</div>${J.map(j=>`<div class="small">${frDate(j.le.slice(0,10))} · ${esc(storeNom(j.magasin))} · ${esc(j.fichier)} · ${esc(j.txt)}</div>`).join("")}`:""}`:""}
   </div>`}
+function dosBandeau(k){const P=dosReg(k);if(!PC||!P||!P.dossier||!P.magasin)return"";
+  return `<div class="note">🔄 Lecture automatique des ${DOS[k].nom} sur ce PC : <b>${esc(P.dossier)}</b> → ${esc(storeNom(P.magasin))}. ${esc(DOS[k].msg||"")}</div>`}
 
 /* ================= export / import ================= */
 function exportData(){const j=JSON.stringify({app:APP,version:APP_VERSION,exporte:new Date().toISOString(),magasins:Object.fromEntries(MAGS.map(m=>[m.id,STORE[m.id]]))},null,1);
@@ -1179,8 +1203,11 @@ function renderModal(){const root=$("#modalRoot");if(!S.modal||S.locked){root.in
     <div class="rlbl">Connexion automatique au démarrage (sans taper le mot de passe)</div>
     <div class="rtheme"><button data-posteauto="1" aria-pressed="${!!S.poste.connexionAuto}">Oui</button><button data-posteauto="0" aria-pressed="${!S.poste.connexionAuto}">Non</button></div>
     <div class="rnote">${S.poste.connexionAuto?"Activée pour "+esc(S.poste.connexionEmail)+". ":""}À mettre seulement sur un PC dont la session Windows a un mot de passe et où les employés n'ont pas accès. L'écran reste verrouillé : GESCOUNT travaille en fond.</div>
-    <button class="rbtn" data-panel="releves"><span class="ic">🏦</span>Dossier des relevés (lecture automatique)</button>
-    ${P1==="releves"?relRegHtml():""}`:""}
+    <div class="rlbl">PC pilote : dossiers lus automatiquement (cloud de la comptable)</div>
+    <button class="rbtn" data-panel="releves"><span class="ic">🏦</span>Dossier des relevés bancaires</button>
+    ${P1==="releves"?dosHtml("releves"):""}
+    <button class="rbtn" data-panel="bulletins"><span class="ic">📄</span>Dossier des bulletins de paie</button>
+    ${P1==="bulletins"?dosHtml("bulletins"):""}`:""}
     <h4>Données</h4>
     <button class="rbtn" data-act="export"><span class="ic">💾</span>Exporter</button>
     <button class="rbtn" data-act="import"><span class="ic">📂</span>Importer</button><input type="file" id="importFile" accept="application/json,.json" hidden>
@@ -1213,7 +1240,12 @@ document.addEventListener("click",async e=>{
       try{await window.api.connexionAutoSet(AUTH.email,AUTH.pw);toast("Connexion automatique activée sur ce PC")}catch(e){toast(e.message||"Impossible sur ce PC")}}
     else if(!on){try{await window.api.connexionAutoSet("");toast("Connexion automatique arrêtée")}catch(e){}}
     S.poste=await window.api.posteGet();renderModal();return}
-  if(ds.relmag){S.poste.releves=await window.api.relevesSet({magasin:ds.relmag});S.poste=await window.api.posteGet();renderModal();relAuto();return}
+  if(ds.dosmag){await window.api.dossierSet(ds.k,{magasin:ds.dosmag});S.poste=await window.api.posteGet();renderModal();dosAuto(ds.k);return}
+  if(ds.dosact){const k=ds.k;
+    if(ds.dosact==="choisir"){const v=await window.api.dossierChoisir(k);if(v){S.poste=await window.api.posteGet();renderModal();dosAuto(k)}}
+    else if(ds.dosact==="lire")dosAuto(k);
+    else if(ds.dosact==="stop"&&await askConfirm("Arrêter la lecture automatique des "+DOS[k].nom+" sur ce PC ?\nCe qui a déjà été importé reste dans GESCOUNT.","Arrêter")){await window.api.dossierSet(k,null);S.poste=await window.api.posteGet();DOS[k].msg="";renderModal()}
+    return}
   if(ds.panel){S.modalPanel=S.modalPanel===ds.panel?null:ds.panel;renderModal();return}
   if(ds.empf){S.empFilt=ds.empf;render();return}
   if(ds.fiche){S.tab="emp";S.ficheEmp=ds.fiche;S.editEmp=null;render();scrollTo(0,0);return}
@@ -1236,9 +1268,6 @@ document.addEventListener("click",async e=>{
     case "import":if(PC&&window.api.importData){const tx=await window.api.importData();if(tx)importText(tx)}else $("#importFile").click();break;
     case "openFolder":window.api.openFolder();break;
     case "majPc":majPc();break;
-    case "relDossier":{const v=await window.api.relevesChoisir();if(v){S.poste=await window.api.posteGet();renderModal();relAuto()}break}
-    case "relLire":relAuto();break;
-    case "relStop":if(await askConfirm("Arrêter la lecture automatique des relevés sur ce PC ?\nLes relevés déjà importés restent dans GESCOUNT.","Arrêter")){await window.api.relevesSet(null);S.poste=await window.api.posteGet();REL.msg="";renderModal()}break;
     case "newEmp":S.editEmp={contrat:"CDI",actif:true};S.ficheEmp=null;render();break;
     case "cancelEmp":S.editEmp=null;render();break;
     case "closeFiche":S.ficheEmp=null;S.editEmp=null;render();break;
@@ -1263,7 +1292,7 @@ document.addEventListener("change",e=>{const t=e.target,ds=t.dataset;
   if(t.id==="relFile"){const f=[...t.files];t.value="";if(f.length)importRel(f);return}
   if(t.id==="bulFile"){const f=[...t.files];t.value="";if(f.length)importBul(f);return}
   if(t.id==="opPole"){S.opPole=t.value;render();return}
-  if(t.id==="relDepuis"){window.api.relevesSet({depuis:t.value||""}).then(async()=>{S.poste=await window.api.posteGet();toast(t.value?"Relevés importés à partir de "+kLbl(t.value).toLowerCase():"Tous les relevés seront importés")});return}
+  if(ds.dosdepuis){const k=ds.dosdepuis;window.api.dossierSet(k,{depuis:t.value||""}).then(async()=>{S.poste=await window.api.posteGet();toast(t.value?DOS[k].nom+" importés à partir de "+kLbl(t.value).toLowerCase():"Tous les fichiers seront importés")});return}
   if(ds.ca){const v=parseNum(t.value);if(Number.isNaN(v)){toast("Montant non reconnu");return}change(x=>{if(v==null)delete x.ca[ds.ca];else x.ca[ds.ca]=v});return}
   if(ds.polenom){const id=ds.polenom,v=t.value.trim();if(v)change(x=>{x.poles[id].nom=v});return}
   if(ds.oppole){const id=ds.oppole,p=t.value,d=D(),o=d.ops[id],tr=o.tiers||tiers(o.lib);let n=0;

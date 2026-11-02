@@ -19,11 +19,11 @@ contextBridge.exposeInMainWorld('api', {
   posteDemarrage: (on) => ipcRenderer.invoke('gc:posteDemarrage', on),
   connexionAutoSet: (email, pw) => ipcRenderer.invoke('gc:connexionAutoSet', email, pw),
   connexionAutoGet: () => ipcRenderer.invoke('gc:connexionAutoGet'),
-  relevesSet: (v) => ipcRenderer.invoke('gc:relevesSet', v),
-  relevesChoisir: () => ipcRenderer.invoke('gc:relevesChoisir'),
-  relevesLister: () => ipcRenderer.invoke('gc:relevesLister'),
-  relevesLire: (rel) => ipcRenderer.invoke('gc:relevesLire', rel),
-  relevesOuvrir: (rel) => ipcRenderer.invoke('gc:relevesOuvrir', rel),
+  dossierSet: (kind, v) => ipcRenderer.invoke('gc:dossierSet', kind, v),
+  dossierChoisir: (kind) => ipcRenderer.invoke('gc:dossierChoisir', kind),
+  dossierLister: (kind) => ipcRenderer.invoke('gc:dossierLister', kind),
+  dossierLire: (kind, rel) => ipcRenderer.invoke('gc:dossierLire', kind, rel),
+  dossierOuvrir: (kind, rel) => ipcRenderer.invoke('gc:dossierOuvrir', kind, rel),
   onLock: (cb) => ipcRenderer.on('gc:lock', () => cb())
 });
 contextBridge.exposeInMainWorld('SYNC', { updateUrl: cfg.updateUrl || '', url: cfg.supabaseUrl || '', key: cfg.supabaseKey || '' });

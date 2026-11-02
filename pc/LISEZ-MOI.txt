@@ -32,7 +32,7 @@ CE QUE CONTIENT CE DOSSIER
   1. Node.js LTS installé (déjà fait pour GESMAR).
   2. Extrayez ce zip (par exemple Documents\CLAUDE CODE\GESCOUNT).
   3. Double-cliquez sur CREER-INSTALLATEUR.bat. L'installateur apparaît dans « dist » :
-     GESCOUNT-Installateur-1.1.0.exe. Lancez-le.
+     GESCOUNT-Installateur-1.2.0.exe. Lancez-le.
      « Windows a protégé votre ordinateur » : « Informations complémentaires »
      puis « Exécuter quand même ».
 
@@ -65,14 +65,17 @@ GESCOUNT EN FOND (version 3 et plus, nécessite ce kit)
     verrouillé. À mettre SEULEMENT sur une session Windows protégée par un mot de
     passe où les employés n'ont pas accès (par exemple le portable de la comptable),
     JAMAIS sur le PC du magasin.
-  - « Dossier des relevés » : choisissez le dossier du cloud où arrivent les relevés
-    Banque Populaire, puis le magasin (BREDIS ou CLAMART). GESCOUNT le lit au démarrage
-    puis toutes les 15 minutes. Chaque relevé n'est importé qu'une fois ; les fichiers
-    ne sont jamais modifiés.
+  - PC pilote : « Dossier des relevés bancaires » et « Dossier des bulletins de paie » :
+    choisissez le dossier du cloud où ils arrivent, puis le magasin (BREDIS ou CLAMART).
+    GESCOUNT les lit au démarrage puis toutes les 15 minutes, même verrouillé, et la
+    synchronisation les partage avec tous les autres postes. Chaque fichier n'est lu
+    qu'une fois ; les fichiers ne sont jamais modifiés. Bulletins : le salarié est
+    reconnu par son nom (sinon il est créé) ; un bulletin déjà présent n'est pas remplacé.
 
   Exemple, portable de la comptable : installer GESCOUNT dans la session Clamart ET
   dans la session Bredis. Dans chacune : démarrage Oui, connexion automatique Oui,
-  dossier des relevés de cette session -> le magasin correspondant.
+  dossiers des relevés et des bulletins de cette session -> le magasin correspondant.
+  C'est ce PC pilote qui remplit GESCOUNT pour tout le monde.
 
 
 MISE À JOUR SANS RÉINSTALLER

@@ -2,7 +2,7 @@
 // GESCOUNT - programme Windows : ouvre la fenêtre, lit/écrit les données sur le PC,
 // gère l'export, l'import, l'impression, la mise à jour depuis GitHub et fournit pdf.js (lecture des relevés et bulletins PDF).
 // v3 : petite icône en bas à droite (zone de notification), démarrage avec Windows, connexion automatique (mot de passe
-// gardé par Windows, lié à la session), lecture d'un dossier de relevés. Réglages propres à CE PC et à CETTE session Windows.
+// gardé par Windows, lié à la session), lecture d'un dossier de relevés et (v4) d'un dossier de bulletins de paie. Réglages propres à CE PC et à CETTE session Windows.
 const { app, BrowserWindow, ipcMain, dialog, shell, Menu, net, Tray, nativeImage, safeStorage } = require('electron');
 const fs = require('fs');
 const path = require('path');
@@ -100,7 +100,7 @@ ipcMain.handle('gc:updateReset', async () => {
 function demarrageSet(on) { try { app.setLoginItemSettings({ openAtLogin: !!on, args: ['--cache'] }); } catch (e) { /* hors Windows */ } }
 ipcMain.handle('gc:posteGet', async () => {
   const p = poste(), c = p.connexionAuto;
-  return { demarrage: !!p.demarrage, connexionAuto: !!(c && c.data), connexionEmail: c && c.email || '', releves: p.releves || null, enFond, chiffrementDispo: safeStorage.isEncryptionAvailable() };
+  return { demarrage: !!p.demarrage, connexionAuto: !!(c && c.data), connexionEmail: c && c.email || '', releves: p.releves || null, bulletins: p.bulletins || null, enFond, chiffrementDispo: safeStorage.isEncryptionAvailable() };
 });
 ipcMain.handle('gc:posteDemarrage', async (e, on) => { const p = poste(); p.demarrage = !!on; posteSave(p); demarrageSet(on); return true; });
 // Mot de passe gardé par Windows (DPAPI) : seule cette session Windows peut le relire.
@@ -114,21 +114,24 @@ ipcMain.handle('gc:connexionAutoGet', async () => {
   const c = poste().connexionAuto; if (!c || !c.data) return null;
   try { return { email: c.email, pw: safeStorage.decryptString(Buffer.from(c.data, 'base64')) }; } catch (e) { return null; }
 });
-// Dossier des relevés (par exemple dans le cloud de la comptable). Lecture seule : rien n'est modifié ni déplacé.
-function relSafe(rel) {
-  const root = (poste().releves || {}).dossier; if (!root) throw new Error('Dossier des relevés non choisi');
+// Dossiers lus automatiquement (v4) : « releves » (relevés bancaires) et « bulletins » (bulletins de paie),
+// par exemple dans le cloud de la comptable. Lecture seule : rien n'est modifié ni déplacé.
+const KINDS = { releves: 'Choisir le dossier des relevés bancaires', bulletins: 'Choisir le dossier des bulletins de paie' };
+const kindOk = (k) => { if (!KINDS[k]) throw new Error('Dossier inconnu'); return k; };
+function dosSafe(kind, rel) {
+  const root = (poste()[kindOk(kind)] || {}).dossier; if (!root) throw new Error('Dossier non choisi');
   const p = path.resolve(root, String(rel || '')), r = path.resolve(root);
   if (p !== r && !p.startsWith(r + path.sep)) throw new Error('Chemin refusé'); return p;
 }
-ipcMain.handle('gc:relevesSet', async (e, v) => { const p = poste(); p.releves = Object.assign({}, p.releves || {}, v || {}); if (v === null) delete p.releves; posteSave(p); return p.releves || null; });
-ipcMain.handle('gc:relevesChoisir', async () => {
-  const p = poste(), cur = (p.releves || {}).dossier;
-  const r = await dialog.showOpenDialog(win, { title: 'Choisir le dossier des relevés bancaires', defaultPath: cur || app.getPath('home'), properties: ['openDirectory'] });
+ipcMain.handle('gc:dossierSet', async (e, kind, v) => { kindOk(kind); const p = poste(); if (v === null) delete p[kind]; else p[kind] = Object.assign({}, p[kind] || {}, v || {}); posteSave(p); return p[kind] || null; });
+ipcMain.handle('gc:dossierChoisir', async (e, kind) => {
+  kindOk(kind); const p = poste(), cur = (p[kind] || {}).dossier;
+  const r = await dialog.showOpenDialog(win, { title: KINDS[kind], defaultPath: cur || app.getPath('home'), properties: ['openDirectory'] });
   if (r.canceled || !r.filePaths[0]) return null;
-  p.releves = Object.assign({}, p.releves || {}, { dossier: r.filePaths[0] }); posteSave(p); return p.releves;
+  p[kind] = Object.assign({}, p[kind] || {}, { dossier: r.filePaths[0] }); posteSave(p); return p[kind];
 });
-ipcMain.handle('gc:relevesLister', async () => {
-  const root = (poste().releves || {}).dossier; if (!root) return { err: 'nodir' };
+ipcMain.handle('gc:dossierLister', async (e, kind) => {
+  const root = (poste()[kindOk(kind)] || {}).dossier; if (!root) return { err: 'nodir' };
   if (!fs.existsSync(root)) return { err: 'absent', root };
   const files = [];
   const walk = async (dir, rel, depth) => {
@@ -143,8 +146,8 @@ ipcMain.handle('gc:relevesLister', async () => {
   await walk(root, '', 0);
   return { root, files };
 });
-ipcMain.handle('gc:relevesLire', async (e, rel) => { const b = await fs.promises.readFile(relSafe(rel)); return new Uint8Array(b.buffer, b.byteOffset, b.length); });
-ipcMain.handle('gc:relevesOuvrir', async (e, rel) => shell.openPath(relSafe(rel)));
+ipcMain.handle('gc:dossierLire', async (e, kind, rel) => { const b = await fs.promises.readFile(dosSafe(kind, rel)); return new Uint8Array(b.buffer, b.byteOffset, b.length); });
+ipcMain.handle('gc:dossierOuvrir', async (e, kind, rel) => shell.openPath(dosSafe(kind, rel)));
 
 // pdf.js (lecture des PDF), fourni avec le programme dans le dossier pdfjs
 ipcMain.handle('gc:pdfjs', async () => ({
