@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>GESCOUNT</title>
 <script>/* version web : réglages Supabase dans config.js (à côté de index.html). Programme PC : fournis par le programme. */if(!window.api)document.write('<script src="config.js"><\/script>')</script>
-<meta name="gc-version" content="4">
+<meta name="gc-version" content="5">
 <style>
 /* Layout (repris de GESTIME) : bandeau blanc [icône + titre + magasin ⌂] [logo] [⚙], rangée de 4 grands onglets verts, sélecteur de période, puis cartes coiffées d'un bandeau rouge. */
 :root{
@@ -459,6 +459,7 @@ details.note summary{cursor:pointer;font-weight:700}
       <button class="ibtn" id="gearBtn" aria-label="Réglages" title="Réglages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3" fill="none"/><path fill="none" d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
       <button class="ibtn" id="undoBtn" aria-label="Annuler la dernière modification" title="Annuler (Ctrl+Z)" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5" fill="none"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" fill="none"/></svg></button>
       <button class="ibtn" id="redoBtn" aria-label="Rétablir" title="Rétablir (Ctrl+Y)" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14l5-5-5-5" fill="none"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" fill="none"/></svg></button>
+      <button class="ibtn" id="lockBtn" aria-label="Verrouiller GESCOUNT" title="Verrouiller (Ctrl+L)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10" rx="2" fill="none"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" fill="none"/><circle cx="12" cy="15.5" r="1.3" fill="currentColor" stroke="none"/></svg></button>
     </div>
   </div>
   <div class="stripe" aria-hidden="true"></div>
@@ -503,7 +504,7 @@ details.note summary{cursor:pointer;font-weight:700}
    - verrouillage automatique après quelques minutes sans activité (des employés utilisent le PC) ;
    - données du PC chiffrées (AES-GCM, clé tirée du mot de passe) : illisibles sans le mot de passe.
    ===================================================================== */
-const APP="GESCOUNT",APP_VERSION=4,TABLE="gescount",LSP="gescount.";
+const APP="GESCOUNT",APP_VERSION=5,TABLE="gescount",LSP="gescount.";
 const MOIS=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
 const MC=["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
 const MAGS=[{id:"bredis",nom:"BREDIS"},{id:"clamart",nom:"CLAMART"}];
@@ -628,7 +629,7 @@ async function unlock(email,pw){email=String(email||"").trim().toLowerCase();
 
 /* ---------- verrouillage ---------- */
 let lastAct=Date.now();
-const lockMin=()=>{try{return +localStorage.getItem(LSP+"verrou")||5}catch(e){return 5}};
+const lockMin=()=>5; // verrouillage automatique : 5 minutes sans activité (décision du 02/11)
 ["mousemove","mousedown","keydown","wheel","touchstart","scroll"].forEach(ev=>document.addEventListener(ev,()=>{lastAct=Date.now()},{passive:true,capture:true}));
 setInterval(()=>{if(!S.locked&&Date.now()-lastAct>lockMin()*60000)lock()},10000);
 function lock(){S.locked=true;S.modal=false;S.modalPanel=null;$("#app").innerHTML="";renderModal();showLock("")}
@@ -1193,18 +1194,12 @@ function renderModal(){const root=$("#modalRoot");if(!S.modal||S.locked){root.in
     <div class="head"><h3>Réglages</h3>${syncIcoHtml()}<button class="x" data-act="closeModal" aria-label="Fermer">✕</button></div>
     <h4>Compte</h4>
     <div class="rinfo" style="margin-top:0">Connecté : <b>${esc(AUTH.email)}</b>${SYNC.st.state==="ko"?`<br><span class="small">${esc(SYNC.st.msg)}</span>`:""}</div>
-    <button class="rbtn" data-act="lockNow"><span class="ic">🔒</span>Verrouiller maintenant</button>
-    <div class="rlbl">Verrouillage automatique sans activité</div>
-    <div class="rtheme r4">${[2,5,10,15].map(m=>`<button data-verrou="${m}" aria-pressed="${vm===m}">${m} min</button>`).join("")}</div>
-    <button class="rbtn" data-act="logout"><span class="ic">🚪</span>Se déconnecter</button>
     ${PC&&S.poste?`<h4>Ce PC</h4>
-    <div class="rlbl" style="margin-top:0">Ouvrir GESCOUNT au démarrage de Windows (petite icône en bas à droite)</div>
+    <div class="rlbl" style="margin-top:0">Ouverture au démarrage de Windows</div>
     <div class="rtheme"><button data-postedem="1" aria-pressed="${!!S.poste.demarrage}">Oui</button><button data-postedem="0" aria-pressed="${!S.poste.demarrage}">Non</button></div>
-    <div class="rlbl">Connexion automatique au démarrage (sans taper le mot de passe)</div>
+    <div class="rlbl">Connexion automatique au démarrage</div>
     <div class="rtheme"><button data-posteauto="1" aria-pressed="${!!S.poste.connexionAuto}">Oui</button><button data-posteauto="0" aria-pressed="${!S.poste.connexionAuto}">Non</button></div>
-    <div class="rnote">${S.poste.connexionAuto?"Activée pour "+esc(S.poste.connexionEmail)+". ":""}À mettre seulement sur un PC dont la session Windows a un mot de passe et où les employés n'ont pas accès. L'écran reste verrouillé : GESCOUNT travaille en fond.</div>
-    <div class="rlbl">PC pilote : dossiers lus automatiquement (cloud de la comptable)</div>
-    <button class="rbtn" data-panel="releves"><span class="ic">🏦</span>Dossier des relevés bancaires</button>
+    <button class="rbtn" data-panel="releves" style="margin-top:10px"><span class="ic">🏦</span>Dossier des relevés bancaires</button>
     ${P1==="releves"?dosHtml("releves"):""}
     <button class="rbtn" data-panel="bulletins"><span class="ic">📄</span>Dossier des bulletins de paie</button>
     ${P1==="bulletins"?dosHtml("bulletins"):""}`:""}
@@ -1229,6 +1224,7 @@ document.addEventListener("click",async e=>{
   if(t.id==="houseBtn"){toggleStoreMenu();return}
   if(ds.store){switchStore(ds.store);closeMenu();return}
   if(t.id==="gearBtn"){S.modal=!S.modal;S.modalPanel=null;if(S.modal){S.majSeenV=S.majNew||0;majFlag()}render();return}
+  if(t.id==="lockBtn"){lock();return}
   if(t.id==="undoBtn"){undo();return}if(t.id==="redoBtn"){redo();return}
   if(ds.per){S.month+=+ds.per;if(S.month<0){S.month=11;S.year--}if(S.month>11){S.month=0;S.year++}render();return}
   if(ds.go){S.tab=ds.go;if(ds.gofilt)S.opFilt=ds.gofilt;S.ficheEmp=null;render();scrollTo(0,0);return}
