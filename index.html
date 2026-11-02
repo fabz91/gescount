@@ -1076,7 +1076,7 @@ function parseBulletin(items){const L=lignes(items),T=L.map(l=>l.text).join("\n"
 async function lireFichiers(files,kind){const out=[];
   for(const f of files){const buf=await f.arrayBuffer();
     try{if(kind==="rel"){if(/\.pdf$/i.test(f.name)||f.type==="application/pdf"){const P=await pdfPages(buf);const r=parseReleve(P,f.name);if(!r.ops.length)r.err="aucune opération trouvée";out.push(r)}
-        else{let t=new TextDecoder("utf-8").decode(buf);if(t.includes("�"))t=new TextDecoder("windows-1252").decode(buf);out.push(parseCsv(t,f.name))}}
+        else{let t=new TextDecoder("utf-8").decode(buf);if(t.includes("\ufffd"))t=new TextDecoder("windows-1252").decode(buf);out.push(parseCsv(t,f.name))}}
       else{const P=await pdfPages(buf);P.forEach((items,i)=>{const r=parseBulletin(items);if(r.brut==null&&r.net==null)return;out.push({...r,fichier:f.name,page:i+1,pages:P.length,ok:true})})}}
     catch(e){console.error(e);out.push(kind==="rel"?{fichier:f.name,ops:[],err:"lecture impossible"}:{fichier:f.name,page:1,pages:1,ok:false,nomLu:"(PDF illisible)"})}}
   return out}
