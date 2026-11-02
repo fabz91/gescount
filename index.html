@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>GESCOUNT</title>
 <script>/* version web : réglages Supabase dans config.js (à côté de index.html). Programme PC : fournis par le programme. */if(!window.api)document.write('<script src="config.js"><\/script>')</script>
-<meta name="gc-version" content="7">
+<meta name="gc-version" content="8">
 <style>
 /* Layout (repris de GESTIME) : bandeau blanc [icône + titre + magasin ⌂] [logo] [⚙], rangée de 4 grands onglets verts, sélecteur de période, puis cartes coiffées d'un bandeau rouge. */
 :root{
@@ -510,13 +510,15 @@ details.note summary{cursor:pointer;font-weight:700}
    - verrouillage automatique après quelques minutes sans activité (des employés utilisent le PC) ;
    - données du PC chiffrées (AES-GCM, clé tirée du mot de passe) : illisibles sans le mot de passe.
    ===================================================================== */
-const APP="GESCOUNT",APP_VERSION=7,TABLE="gescount",LSP="gescount.";
+const APP="GESCOUNT",APP_VERSION=8,TABLE="gescount",LSP="gescount.";
 const MOIS=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
 const MC=["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
 const MAGS=[{id:"bredis",nom:"BREDIS"},{id:"clamart",nom:"CLAMART"}];
 const CONTRATS=["CDI","CDD","Apprentissage","Contrat pro","Étudiant","Intérim","Autre"];
 const POLES0=[["march","Marchandises"],["sal","Salaires"],["soc","Charges sociales"],["loyer","Loyer et charges"],["energ","Énergie"],["impot","Impôts et taxes"],["banque","Frais bancaires"],["assur","Assurances"],["entret","Entretien et réparations"],["tel","Téléphone et informatique"],["transp","Transport"],["emprunt","Emprunts"],["recet","Recettes"],["virint","Virements internes"],["autre","Autres"]];
 const REGLES0=[["URSSAF","soc"],["MALAKOFF","soc"],["AG2R","soc"],["KLESIA","soc"],["HUMANIS","soc"],["AUDIENS","soc"],["PREVOYANCE","soc"],["MUTUELLE","soc"],["DGFIP","impot"],["IMPOT","impot"],["TRESOR PUBLIC","impot"],["CFE","impot"],["EDF","energ"],["ENGIE","energ"],["TOTALENERGIES","energ"],["TOTAL ENERGIES","energ"],["ORANGE","tel"],["SFR","tel"],["BOUYGUES","tel"],["FREE","tel"],["AXA","assur"],["ALLIANZ","assur"],["MMA","assur"],["GENERALI","assur"],["MAAF","assur"],["FRAIS","banque"],["COMMISSION","banque"],["COTIS","banque"],["AGIOS","banque"],["INTERETS","banque"],["DIAPAR","march"],["CARREFOUR","march"],["REMISE CB","recet"],["REMISE CARTE","recet"],["REMISE CARTES","recet"],["VERSEMENT ESPECES","recet"],["ECHEANCE PRET","emprunt"],["ECH PRET","emprunt"],["REMBOURSEMENT PRET","emprunt"],["SALAIRE","sal"],["PAIE","sal"]];
+// v8 : ajoutées d'après un vrai relevé Banque Populaire (ajoutées aussi aux magasins déjà créés, une seule fois)
+const REGLES2=[["GAB","recet"],["EUROVIREMENT","recet"],["EDENRED","recet"],["PLUXEE","recet"],["UP COOP","recet"],["UBER PAYMENTS","recet"],["LCR DOMICILIEE","march"],["GAZELENERGIE","energ"],["ECHEANCE PRET","emprunt"],["REMISE CHEQUES","recet"],["DIRECTION GENE","impot"],["BPCE VIE","assur"],["BRINKS","banque"],["COMMISSIONS","banque"]];
 
 const S={store:"bredis",tab:"bord",year:new Date().getFullYear(),month:new Date().getMonth(),modal:false,modalPanel:null,
   empFilt:"actifs",editEmp:null,ficheEmp:null,editBul:null,bulImport:null,relImport:null,opFilt:"tout",opPole:"",opText:"",showRegles:false,editConge:null,locked:true};
@@ -573,8 +575,10 @@ async function decTxt(key,j){const o=JSON.parse(j);if(!o||o.gescount!=="chiffre"
 
 /* ---------- données ---------- */
 function newD(){return{employes:{},bulletins:{},ops:{},releves:{},conges:{},ca:{},
-  poles:Object.fromEntries(POLES0.map(([id,nom],i)=>[id,{nom,ordre:i}])),regles:Object.fromEntries(REGLES0.map(([m,p],i)=>["r"+i,{motif:m,pole:p}]))}}
-function norm(d){const n=newD(),o=d&&typeof d==="object"?d:{};for(const k of Object.keys(n))if(o[k]&&typeof o[k]==="object"&&!Array.isArray(o[k]))n[k]=o[k];return n}
+  poles:Object.fromEntries(POLES0.map(([id,nom],i)=>[id,{nom,ordre:i}])),regles:Object.fromEntries([...REGLES0.map(([m,p],i)=>["r"+i,{motif:m,pole:p}]),...REGLES2.map(([m,p],i)=>["r2_"+i,{motif:m,pole:p}])]),reglesV:2}}
+function norm(d){const n=newD(),o=d&&typeof d==="object"?d:{};for(const k of Object.keys(n))if(o[k]&&typeof o[k]==="object"&&!Array.isArray(o[k]))n[k]=o[k];
+  if(o.regles){n.reglesV=o.reglesV||1;if(n.reglesV<2){REGLES2.forEach(([m,p],i)=>{if(!Object.values(n.regles).some(x=>nk(x.motif)===nk(m)))n.regles["r2_"+i]={motif:m,pole:p}});n.reglesV=2}}
+  return n}
 const STORE={};MAGS.forEach(m=>STORE[m.id]=newD());
 const META={};const meta=id=>META[id]||(META[id]={rev:0,dirty:false,base:null,cnt:0});
 const D=()=>STORE[S.store];
@@ -737,9 +741,10 @@ function cpInfo(d,e){const b=bulsOf(d).filter(x=>x.emp===e.id&&x.cpSolde!=null&&
 function joursOuvrables(a,b){if(!a||!b||b<a)return 0;let n=0;for(let t=Date.parse(a);t<=Date.parse(b);t+=864e5){if(new Date(t).getUTCDay()!==0)n++}return n}
 
 /* banque */
-const STOP=new Set("PRLV SEPA VIR VIREMENT CB CARTE FACTURE FACT PAIEMENT PAI DU DE LE LA LES DES ET REF ECH MDT RUM ICS INST INSTANTANE EMIS RECU WEB PAR POUR AU A SA SAS SARL EURL SNC FR N NO NUM ORDRE BENEF DONNEUR MOTIF ID ACHAT PRELEVEMENT EUROPEEN RECURRENT PERMANENT TIP CHQ CHEQUE EN FAVEUR ECHEANCE DATE".split(" "));
-function tiers(lib){const w=nk(lib).split(" ").filter(Boolean),k=w.filter(x=>!STOP.has(x)&&!/\d/.test(x)&&x.length>1);return(k.length?k:w.filter(x=>!/\d/.test(x))).slice(0,2).join(" ")||w.slice(0,2).join(" ")}
+const STOP=new Set("EVI EUROVIREMENT SAC DCV PRLV SEPA VIR VIREMENT CB CARTE FACTURE FACT PAIEMENT PAI DU DE LE LA LES DES ET REF ECH MDT RUM ICS INST INSTANTANE EMIS RECU WEB PAR POUR AU A SA SAS SARL EURL SNC FR N NO NUM ORDRE BENEF DONNEUR MOTIF ID ACHAT PRELEVEMENT EUROPEEN RECURRENT PERMANENT TIP CHQ CHEQUE EN FAVEUR ECHEANCE DATE".split(" "));
+function tiers(lib){const w=[...new Set(nk(lib).split(" ").filter(Boolean))],k=w.filter(x=>!STOP.has(x)&&!/\d/.test(x)&&x.length>1);return(k.length?k:w.filter(x=>!/\d/.test(x))).slice(0,2).join(" ")||w.slice(0,2).join(" ")}
 function classer(d,lib){const L=" "+nk(lib)+" ";let best=null;for(const r of Object.values(d.regles)){const m=nk(r.motif);if(m&&L.includes(" "+m)&&d.poles[r.pole]&&(!best||m.length>nk(best.motif).length))best=r}return best?best.pole:""}
+const tiersOp=o=>(o.lib1&&tiers(o.lib1))||tiers(o.lib);
 const opsAll=d=>Object.entries(d.ops).map(([id,o])=>({id,...o})).filter(o=>o.date);
 const opsMois=(d,k)=>opsAll(d).filter(o=>o.date.slice(0,7)===k);
 const poleNom=(d,p)=>p&&d.poles[p]?d.poles[p].nom:"Non classé";
@@ -889,7 +894,7 @@ function vSal(){const d=D(),k=curK(),kp=kAdd(k,-1),L=bulsOf(d,k).sort((a,b)=>emp
     ${L.map(b=>{const p=P.find(x=>x.emp===b.emp);return `<tr><td class="l"><button class="alink b" data-fiche="${b.emp}">${esc(empNom(d.employes[b.emp]))}</button></td><td>${f2(b.heures)}</td><td>${f2(b.hsup)}</td><td>${f2(b.primes)}</td><td>${e2(b.brut)}</td><td>${f2(b.chargesSal)}</td><td>${e2(b.net)}</td><td>${f2(b.chargesPat)}</td><td><b>${e2(cout(b))}</b></td><td>${evoHtml(p?evo(cout(b),cout(p)):null,true)}</td><td>${M.cout?pct(cout(b)/M.cout):"—"}</td><td><button class="btn small" data-editbul="${b.id}">Modifier</button></td></tr>`}).join("")}
     <tr class="tot"><td class="l">TOTAL</td><td>${f2(sum(L,b=>b.heures||0))}</td><td>${f2(M.hsup)}</td><td>${f2(M.primes)}</td><td>${e2(M.brut)}</td><td>${f2(M.sal)}</td><td>${e2(M.net)}</td><td>${f2(M.pat)}</td><td>${e2(M.cout)}</td><td></td><td></td><td></td></tr>
   </tbody></table></div>`:`<div class="empty-state">Aucun bulletin pour ${MOIS[S.month].toLowerCase()} ${S.year}.${dernierMois(d,"bul")?"<br>"+voirMois(dernierMois(d,"bul"),"Voir le dernier mois importé : "+kLbl(dernierMois(d,"bul")).toLowerCase()+" ›"):""}<br><small>« Importer des bulletins (PDF) » lit les bulletins envoyés par le comptable (un ou plusieurs par fichier).</small></div>`}</div>
-  ${M.cout?`<div class="panel" style="margin-top:16px"><div class="band">Décomposition du coût — ${MOIS[S.month]}</div>${(()=>{const parts=[["Net versé aux salariés",M.net,C1],["Charges salariales (retenues)",Math.max(0,M.brut-M.net),"#f5a524"],["Charges patronales",M.pat,C2]],T=parts.reduce((s,p)=>s+p[1],0)||1;
+  ${M.cout?`<div class="panel" style="margin-top:16px"><div class="band">Décomposition du coût — ${MOIS[S.month]}</div>${(()=>{const cs=M.sal||Math.max(0,M.brut-M.net),aut=M.brut-M.net-cs;const parts=[["Net versé aux salariés",M.net,C1],["Charges salariales",cs,"#f5a524"],...(Math.abs(aut)>=1?[[aut>0?"Acomptes, impôt et autres retenues":"Remboursements (transport…)",Math.abs(aut),C3]]:[]),["Charges patronales",M.pat,C2]],T=parts.reduce((s,p)=>s+p[1],0)||1;
       return `<div class="stack">${parts.map(p=>`<i style="width:${(p[1]/T*100).toFixed(2)}%;background:${p[2]}" title="${esc(p[0])}"></i>`).join("")}</div><div class="leg">${parts.map(p=>`<span><i style="background:${p[2]}"></i>${esc(p[0])} : <b>${e0(p[1])}</b> (${pct(p[1]/T)})</span>`).join("")}</div>`})()}</div>`:""}
   <div class="panel" style="margin-top:16px"><div class="band">Masse salariale sur 12 mois</div>${mm.some(x=>x.n)?bars(ms.map(kShort),[{n:"Coût employeur",c:C2,v:mm.map(x=>x.cout)},{n:"CA HT",c:C3,v:ms.map(x=>d.ca[x]||0)}],e0)+`<div class="scroll"><table><thead><tr><th class="l">Mois</th>${ms.map(x=>`<th>${kShort(x)}</th>`).join("")}</tr></thead><tbody><tr><td class="l">Coût</td>${mm.map(x=>`<td>${x.n?e0(x.cout):"—"}</td>`).join("")}</tr><tr><td class="l">CA HT</td>${ms.map(x=>`<td>${d.ca[x]?e0(d.ca[x]):"—"}</td>`).join("")}</tr><tr><td class="l">Masse / CA</td>${ms.map((x,i)=>`<td>${mm[i].n&&d.ca[x]?pct(mm[i].cout/d.ca[x]):"—"}</td>`).join("")}</tr></tbody></table></div>`:`<div class="empty-state small">Le graphique apparaîtra avec les premiers bulletins.</div>`}</div>`}
 const BUL_F=[["heures","Heures payées"],["hsup","Heures sup. (€)"],["primes","Primes (€)"],["brut","Salaire brut"],["chargesSal","Charges salariales"],["net","Net à payer"],["chargesPat","Charges patronales"],["cout","Coût total employeur"],["cpAcquis","CP acquis (j)"],["cpPris","CP pris (j)"],["cpSolde","CP restants (j)"]];
@@ -990,7 +995,8 @@ async function pdfLib(){if(PDFLIB)return PDFLIB;let lib;
 async function pdfPages(buf){const lib=await pdfLib();const task=lib.getDocument({data:new Uint8Array(buf),isEvalSupported:false,verbosity:0});const doc=await task.promise,pages=[];
   try{for(let i=1;i<=doc.numPages;i++){const pg=await doc.getPage(i),tc=await pg.getTextContent();pages.push(tc.items.filter(it=>it.str&&it.str.trim()).map(it=>({s:it.str.trim(),x:it.transform[4],y:it.transform[5],w:it.width})))}}
   finally{try{await task.destroy()}catch(_){}}return pages}
-function lignes(items){const L=[];for(const it of items.slice().sort((a,b)=>b.y-a.y||a.x-b.x)){let l=L.find(l=>Math.abs(l.y-it.y)<2.5);if(!l){l={y:it.y,t:[]};L.push(l)}l.t.push(it)}
+const normTok=s=>String(s).replace(/^([-+])\s+(?=\d)/,"$1").replace(/\s*€$/,"").trim();
+function lignes(items){const L=[];for(const it of items.map(x=>({...x,s:normTok(x.s)})).filter(x=>x.s).sort((a,b)=>b.y-a.y||a.x-b.x)){let l=L.find(l=>Math.abs(l.y-it.y)<2.5);if(!l){l={y:it.y,t:[]};L.push(l)}l.t.push(it)}
   L.sort((a,b)=>b.y-a.y);for(const l of L){l.t.sort((a,b)=>a.x-b.x);
     // pdf.js coupe parfois un nombre en morceaux (« 1 » « 234,56 ») : on les recolle
     const t=[];for(const it of l.t){const p=t[t.length-1];if(p&&/^\d{1,3}$/.test(p.s)&&/^\d{3}([ .]\d{3})*,\d{2}$/.test(it.s)&&it.x-(p.x+p.w)<6){p.s+=" "+it.s;p.w=it.x+it.w-p.x}else t.push({...it})}
@@ -1005,24 +1011,28 @@ function parseReleve(pages,fichier){
   const r={fichier,ops:[],debut:null,fin:null,soldeDebut:null,soldeFin:null};
   let m=/du\s+(\d{2})[\/.](\d{2})[\/.](\d{2,4})\s+au\s+(\d{2})[\/.](\d{2})[\/.](\d{2,4})/i.exec(text);
   if(m){r.debut=y4(m[3])+"-"+m[2]+"-"+m[1];r.fin=y4(m[6])+"-"+m[5]+"-"+m[4]}
+  else{const f2=/relev[ée]\s.{0,30}?\bau\s+(\d{2})[\/.](\d{2})[\/.](\d{4})/i.exec(text);if(f2)r.fin=f2[3]+"-"+f2[2]+"-"+f2[1]} // Banque Populaire : « relevé de compte n°9 au 30/09/2026 »
   const finY=r.fin?+r.fin.slice(0,4):new Date().getFullYear(),finM=r.fin?+r.fin.slice(5,7):12;
   const isoOf=(dd,mm,yy)=>{let y=yy?+y4(yy):(+mm>finM?finY-1:finY);return y+"-"+mm+"-"+dd};
-  let cols=null,cur=null,n=0;const soldes=[];
-  for(const l of all){
+  let cols=null,cur=null,n=0,totaux=false,fini=false;const soldes=[];
+  for(const l of all){if(fini)break; // Banque Populaire : après le solde final viennent des « DETAIL DE VOS PRELEVEMENTS / VIREMENTS » qui répètent les opérations
+    if(/^DETAIL DE VOS (MOUVEMENTS|PRELEVEMENTS|VIREMENTS)/i.test(l.text)&&r.ops.length){fini=true;break}
     const hd=l.t.find(t=>/^d[ée]bit/i.test(t.s)),hc=l.t.find(t=>/^cr[ée]dit/i.test(t.s));
     if(hd&&hc){cols={d:hd.x+hd.w/2,c:hc.x+hc.w/2,page:l.page};cur=null;continue}
     const am=l.t.filter(t=>RE_AMT.test(t.s));
-    const side=t=>{if(/^-|-$/.test(t.s))return -1;if(/^\+/.test(t.s))return 1;if(cols){const cx=t.x+t.w/2;return Math.abs(cx-cols.d)<=Math.abs(cx-cols.c)?-1:1}return -1};
+    const side=t=>{if(/^-|-$/.test(t.s))return -1;if(/^\+/.test(t.s))return 1;if(cols){const cx=t.x+t.w/2;return Math.abs(cx-cols.d)<=Math.abs(cx-cols.c)?-1:1}return 1}; // une seule colonne MONTANT (Banque Populaire) : le signe « - » donne les débits
     if(/\bsolde\b/i.test(l.text)&&am.length){const a=am[am.length-1];let v=Math.abs(amt(a.s));if(/d[ée]biteur/i.test(l.text)||(!/cr[ée]diteur/i.test(l.text)&&side(a)<0&&cols))v=-v;
-      const dm=/(\d{2})[\/.](\d{2})[\/.](\d{2,4})/.exec(l.text);soldes.push({v,date:dm?y4(dm[3])+"-"+dm[2]+"-"+dm[1]:null});cur=null;continue}
-    if(/total\s+des\s+(mouvements|op[ée]rations)|^report|^à reporter|^a reporter/i.test(l.text)){cur=null;continue}
-    const d0=l.t[0]&&RE_DATE.exec(l.t[0].s);
+      const dm=/(\d{2})[\/.](\d{2})[\/.](\d{2,4})/.exec(l.text);soldes.push({v,date:dm?y4(dm[3])+"-"+dm[2]+"-"+dm[1]:null});cur=null;if(totaux)fini=true;continue}
+    if(/total\s+des\s+(mouvements|op[ée]rations)|^report|^à reporter|^a reporter/i.test(l.text)){if(/total\s+des/i.test(l.text))totaux=true;cur=null;continue}
+    const T=(l.t.length>1&&/^\d{1,4}$/.test(l.t[0].s)&&RE_DATE.test(l.t[1].s))?l.t.slice(1):l.t; // petit numéro dans la marge avant la date (Banque Populaire)
+    const d0=T[0]&&RE_DATE.exec(T[0].s);
     if(d0&&am.length){const a=am[am.length-1];
-      const libT=l.t.slice(1).filter(t=>!am.includes(t)&&!(RE_DATE.test(t.s)&&t!==l.t[0]));
-      cur={date:isoOf(d0[1],d0[2],d0[3]),lib:libT.map(t=>t.s).join(" ").replace(/\s+/g," ").trim(),montant:Math.round(Math.abs(amt(a.s))*side(a)*100)/100,n:n++,page:l.page,y:l.y};r.ops.push(cur);continue}
+      const libT=T.slice(1).filter(t=>!am.includes(t)&&!(RE_DATE.test(t.s)&&t!==T[0]));
+      const lib0=libT.map(t=>t.s).join(" ").replace(/\s+/g," ").trim();
+      cur={date:isoOf(d0[1],d0[2],d0[3]),lib:lib0,lib1:lib0,montant:Math.round(Math.abs(amt(a.s))*side(a)*100)/100,n:n++,page:l.page,y:l.y};r.ops.push(cur);continue}
     if(cur&&!am.length&&!d0&&l.page===cur.page&&cur.y-l.y<16&&(cur.ext||0)<2&&!/^(date|page|banque populaire|relev[ée])/i.test(l.text)){cur.lib+=" "+l.text;cur.ext=(cur.ext||0)+1;cur.y=l.y;continue}
     cur=null}
-  r.ops.forEach(o=>{delete o.page;delete o.y;delete o.ext;o.lib=o.lib.slice(0,160)});
+  r.ops.forEach(o=>{delete o.page;delete o.y;delete o.ext;o.lib=o.lib.slice(0,160);o.lib1=String(o.lib1||"").slice(0,80)});
   if(soldes.length){r.soldeDebut=soldes[0].v;if(soldes.length>1)r.soldeFin=soldes[soldes.length-1].v;
     if(!r.debut&&soldes[0].date)r.debut=soldes[0].date;if(!r.fin&&soldes.length>1&&soldes[soldes.length-1].date)r.fin=soldes[soldes.length-1].date}
   if(!r.debut&&r.ops.length)r.debut=r.ops.map(o=>o.date).sort()[0];if(!r.fin&&r.ops.length)r.fin=r.ops.map(o=>o.date).sort().pop();
@@ -1042,20 +1052,26 @@ function parseCsv(txt,fichier){const lines=txt.replace(/^﻿/,"").split(/\r?\n/)
   const ds=ops.map(o=>o.date).sort();return{fichier,ops,debut:ds[0]||null,fin:ds[ds.length-1]||null,soldeDebut:null,soldeFin:null}}
 
 function parseBulletin(items,dd){const L=lignes(items),T=L.map(l=>l.text).join("\n");
-  const nums=l=>l.t.filter(t=>/^-?\d{1,3}(?:[ .  ]?\d{3})*,\d{2,4}$/.test(t.s)).map(t=>amt(t.s.replace(/,(\d{2})\d+$/,",$1")));
+  // nombres « 1 234,56 » ou « 1041.77 » (Sage), négatifs possibles
+  const bnum=x=>{x=String(x).replace(/[\s\u00a0\u202f]/g,"");if(x.includes(","))x=x.replace(/\./g,"").replace(",",".");return Math.round(parseFloat(x)*100)/100};
+  const nums=l=>l.t.filter(t=>/^-?\d{1,3}(?:[ \u00a0\u202f]?\d{3})*[.,]\d{2,4}$/.test(t.s)||/^-?\d{1,3}(?:\.\d{3})+,\d{2}$/.test(t.s)).map(t=>bnum(t.s));
   const line=re=>L.find(l=>re.test(l.text)&&nums(l).length);
   const last=re=>{const l=line(re);if(!l)return null;const v=nums(l);return v[v.length-1]};
   const r={};
   r.brut=last(/salaire\s+brut|total\s+brut|^brut\b|\bbrut\s+(soumis|total)/i);
   r.net=last(/net\s+[àa]\s+payer(?!\s+avant)|net\s+pay[ée]/i);if(r.net==null)r.net=last(/net\s+[àa]\s+payer/i);
-  const tc=line(/total\s+(des\s+)?(cotisations|retenues|charges)/i);if(tc){const v=nums(tc);if(v.length>=2){r.chargesSal=v[0];r.chargesPat=v[v.length-1]}else r.chargesSal=v[0]}
-  r.cout=last(/co[uû]t\s+(global|total)|total\s+(co[uû]t\s+)?employeur|co[uû]t\s+employeur/i);
+  const tc=line(/total\s+(des\s+)?(cotisations|retenues|charges)/i);if(tc){const v=nums(tc).map(Math.abs);if(v.length>=2){r.chargesSal=v[0];r.chargesPat=v[v.length-1]}else r.chargesSal=v[0]}
+  r.cout=last(/co[uû]t\s+(global|total)|total\s+(co[uû]t\s+)?employeur|co[uû]t\s+employeur|total\s+vers[ée]\s+par\s+l.?employeur/i);if(r.cout!=null)r.cout=Math.abs(r.cout);
   if(r.chargesPat==null){const p=last(/(total\s+)?(charges|cotisations)\s+patronales/i);if(p!=null)r.chargesPat=p}
   if(r.chargesPat==null&&r.cout!=null&&r.brut!=null)r.chargesPat=Math.round((r.cout-r.brut)*100)/100;
-  const base=line(/salaire\s+de\s+base|appointements|salaire\s+mensuel/i);if(base){const v=nums(base);if(v.length>=2&&v[0]<=260)r.heures=v[0]}
-  const hs=L.filter(l=>/heures?\s+sup|h\.?\s*sup\b|heures?\s+compl|majoration/i.test(l.text)&&nums(l).length).map(l=>{const v=nums(l);return v[v.length-1]});if(hs.length)r.hsup=Math.round(sum(hs)*100)/100;
+  const base=line(/salaire\s+de\s+base|salaire\s+horaire|appointements|salaire\s+mensuel/i);if(base){const v=nums(base);if(v.length>=2&&v[0]<=260)r.heures=v[0]}
+  const hs=L.filter(l=>/^(heures?\s+sup|h\.?\s*sup\b|heures?\s+compl|majoration)/i.test(l.text)&&nums(l).length).map(l=>{const v=nums(l);return v[v.length-1]});if(hs.length)r.hsup=Math.round(sum(hs)*100)/100;
   const pr=L.filter(l=>/prime|gratification|13\s*[èe]me|treizi[èe]me|bonus/i.test(l.text)&&!/total/i.test(l.text)&&nums(l).length).map(l=>{const v=nums(l);return v[v.length-1]});if(pr.length)r.primes=Math.round(sum(pr)*100)/100;
-  const cp=line(/(solde|reste).{0,20}(cp|cong)|(cp|cong[ée]s).{0,30}(solde|reste)/i);if(cp){const v=nums(cp);r.cpSolde=v[v.length-1]}
+  const cpL=L.filter(l=>/^CP\s/i.test(l.text)&&nums(l).length>=3); // Sage : « CP année N / N-1 / antérieurs » : acquis, pris, reste
+  if(cpL.length){r.cpAcquis=Math.round(sum(cpL,l=>nums(l)[0])*100)/100;r.cpPris=Math.round(sum(cpL,l=>nums(l)[1])*100)/100;r.cpSolde=Math.round(sum(cpL,l=>nums(l)[2])*100)/100}
+  else{const cp=line(/(solde|reste).{0,20}(cp|cong)|(cp|cong[ée]s).{0,30}(solde|reste)/i);if(cp){const v=nums(cp);r.cpSolde=v[v.length-1]}}
+  const em=L.find(l=>/^emploi\s*:/i.test(l.text));if(em)r.poste=em.text.replace(/^emploi\s*:\s*/i,"").trim().slice(0,60);
+  const an=L.find(l=>/^anciennet[ée]\s*:/i.test(l.text));if(an){const dm=/(\d{2})\/(\d{2})\/(\d{4})/.exec(an.text);if(dm)r.entree=dm[3]+"-"+dm[2]+"-"+dm[1]}
   let m=/p[ée]riode\s+du\s+\d{2}[\/.](\d{2})[\/.](\d{2,4})/i.exec(T)||/(?:paie|p[ée]riode|mois)\s*:?\s*(\d{2})[\/.](\d{4})/i.exec(T);
   if(m)r.mois=y4(m[2])+"-"+m[1];else{const mm=new RegExp("("+MOIS.map(x=>nk(x)).join("|")+")\\s+(20\\d{2})").exec(nk(T));if(mm)r.mois=mm[2]+"-"+String(MOIS.map(x=>nk(x)).indexOf(mm[1])+1).padStart(2,"0")}
   const RN=/^(m\.|mr\.?|mme|mlle|monsieur|madame)\s+(?=[a-zà-ÿ])/i;
@@ -1080,7 +1096,7 @@ async function importRel(files){S.relImport={busy:files.length+" fichier(s)",fil
 function saveRel(){const I=S.relImport;if(!I)return;let n=0,nc=0;
   change(d=>{for(const f of I.files){const ops=f.ops.filter(o=>!o.doublon);if(!ops.length&&!f.soldeFin)continue;const rid=uid();
     d.releves[rid]={fichier:f.fichier,debut:f.debut,fin:f.fin,soldeDebut:f.soldeDebut,soldeFin:f.soldeFin,controle:f.controle||null,ecart:f.ecart??null,n:ops.length,importeLe:todayISO()};
-    for(const o of ops){d.ops[uid()]={date:o.date,lib:o.lib,montant:o.montant,pole:o.pole||"",tiers:tiers(o.lib),releve:rid,n:o.n};n++;if(!o.pole)nc++}}});
+    for(const o of ops){d.ops[uid()]={date:o.date,lib:o.lib,montant:o.montant,pole:o.pole||"",tiers:tiersOp(o),releve:rid,n:o.n};n++;if(!o.pole)nc++}}});
   const last=I.files.map(f=>f.fin).filter(Boolean).sort().pop();if(last){S.year=+last.slice(0,4);S.month=+last.slice(5,7)-1}
   S.relImport=null;S.opFilt=nc?"nonclassees":"tout";toast(n+" opération(s) enregistrée(s)"+(nc?", "+nc+" à classer":""));render()}
 async function importBul(files){S.bulImport={busy:files.length+" fichier(s)",rows:[]};render();
@@ -1089,7 +1105,7 @@ async function importBul(files){S.bulImport={busy:files.length+" fichier(s)",row
 function saveBul(){const I=S.bulImport;if(!I)return;const R=I.rows.filter(r=>r.ok);
   if(R.some(r=>!r.emp||!r.mois)){toast("Choisissez le salarié et le mois de chaque ligne cochée.");return}let n=0;const crees={};
   change(d=>{for(const r of R){let emp=r.emp;
-      if(emp==="+new"){const key=nk(r.nomLu);emp=crees[key];if(!emp){const w=(r.nomLu||"").split(" ");emp=crees[key]=uid();d.employes[emp]={nom:(w[0]||"").toUpperCase(),prenom:w.slice(1).join(" "),contrat:"CDI",actif:true}}}
+      if(emp==="+new"){const key=nk(r.nomLu);emp=crees[key];if(!emp){const w=(r.nomLu||"").split(" ");emp=crees[key]=uid();d.employes[emp]={nom:(w[0]||"").toUpperCase(),prenom:w.slice(1).join(" "),contrat:/APPRENTI/i.test(r.poste||"")?"Apprentissage":"CDI",actif:true,...(r.poste?{poste:r.poste}:{}),...(r.entree?{entree:r.entree}:{})}}}
       const old=Object.entries(d.bulletins).find(([,b])=>b.emp===emp&&b.mois===r.mois);const id=old?old[0]:uid();
       const b={emp,mois:r.mois,source:r.fichier};BUL_F.forEach(([k])=>{if(r[k]!=null&&r[k]!=="")b[k]=r[k]});d.bulletins[id]=b;n++}});
   const k=R[0].mois;S.year=+k.slice(0,4);S.month=+k.slice(5,7)-1;S.bulImport=null;toast(n+" bulletin(s) enregistré(s)");render()}
@@ -1099,7 +1115,7 @@ function saveBul(){const I=S.bulImport;if(!I)return;const R=I.rows.filter(r=>r.o
    Le PC pilote (portable de la comptable : démarrage avec Windows + connexion automatique) lit ces dossiers au démarrage puis
    toutes les 15 min, même verrouillé ou en petite icône, et la synchronisation partage tout avec les autres postes.
    Chaque fichier n'est lu qu'une fois ; ce qui est déjà dans GESCOUNT est ignoré. */
-const LECT_V=1; // à augmenter quand la lecture des PDF change : les fichiers non reconnus sont alors relus
+const LECT_V=2; // à augmenter quand la lecture des PDF change : les fichiers non reconnus sont alors relus
 const DOS={releves:{nom:"relevés bancaires",ic:"🏦",busy:false,msg:"",last:null},bulletins:{nom:"bulletins de paie",ic:"📄",busy:false,msg:"",last:null}};
 const dosReg=k=>(S.poste&&S.poste[k])||null;
 function dosVus(k){let v={};try{v=JSON.parse(rawLoad("gescount-"+k+"-vus")||"{}")||{}}catch(e){}
@@ -1110,14 +1126,14 @@ function enregistrerReleve(f,magId){const d=STORE[magId],seen=new Set(opsAll(d).
   const deja=Object.values(d.releves).some(x=>x.fichier===f.fichier&&x.debut===f.debut&&x.fin===f.fin);
   if(!ops.length&&deja)return 0;
   change(x=>{const rid=uid();x.releves[rid]={fichier:f.fichier,debut:f.debut,fin:f.fin,soldeDebut:f.soldeDebut,soldeFin:f.soldeFin,controle:f.controle||null,ecart:f.ecart??null,n:ops.length,importeLe:todayISO(),auto:true};
-    for(const o of ops)x.ops[uid()]={date:o.date,lib:o.lib,montant:o.montant,pole:classer(x,o.lib),tiers:tiers(o.lib),releve:rid,n:o.n}},magId);
+    for(const o of ops)x.ops[uid()]={date:o.date,lib:o.lib,montant:o.montant,pole:classer(x,o.lib),tiers:tiersOp(o),releve:rid,n:o.n}},magId);
   return ops.length}
 // Bulletins : salarié reconnu par son nom (sinon créé), mois lu sur la page ; un bulletin déjà présent (même salarié, même mois) n'est pas remplacé.
 function enregistrerBulletins(rows,magId,fichier){const d=STORE[magId],out={n:0,crees:0,deja:0,aVoir:0};const crees={};
   const ok=rows.filter(r=>(r.brut!=null||r.net!=null)&&r.mois);out.aVoir=rows.length-ok.length;if(!ok.length)return out;
   change(x=>{for(const r of ok){let emp=r.emp&&x.employes[r.emp]?r.emp:null;
       if(!emp&&r.nomLu){const key=nk(r.nomLu);emp=crees[key]||Object.entries(x.employes).find(([,e])=>nk(empNom(e))===key)?.[0];
-        if(!emp){const w=r.nomLu.split(" ");emp=crees[key]=uid();x.employes[emp]={nom:(w[0]||"").toUpperCase(),prenom:w.slice(1).join(" "),contrat:"CDI",actif:true};out.crees++}}
+        if(!emp){const w=r.nomLu.split(" ");emp=crees[key]=uid();x.employes[emp]={nom:(w[0]||"").toUpperCase(),prenom:w.slice(1).join(" "),contrat:/APPRENTI/i.test(r.poste||"")?"Apprentissage":"CDI",actif:true,...(r.poste?{poste:r.poste}:{}),...(r.entree?{entree:r.entree}:{})};out.crees++}}
       if(!emp){out.aVoir++;continue}
       if(Object.values(x.bulletins).some(b=>b.emp===emp&&b.mois===r.mois)){out.deja++;continue}
       const b={emp,mois:r.mois,source:fichier+(r.pages>1?" p."+r.page:""),auto:true};BUL_F.forEach(([k])=>{if(r[k]!=null&&r[k]!=="")b[k]=r[k]});x.bulletins[uid()]=b;out.n++}},magId);
