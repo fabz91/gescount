@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>GESCOUNT</title>
 <script>/* version web : réglages Supabase dans config.js (à côté de index.html). Programme PC : fournis par le programme. */if(!window.api)document.write('<script src="config.js"><\/script>')</script>
-<meta name="gc-version" content="8">
+<meta name="gc-version" content="9">
 <style>
 /* Layout (repris de GESTIME) : bandeau blanc [icône + titre + magasin ⌂] [logo] [⚙], rangée de 4 grands onglets verts, sélecteur de période, puis cartes coiffées d'un bandeau rouge. */
 :root{
@@ -510,7 +510,7 @@ details.note summary{cursor:pointer;font-weight:700}
    - verrouillage automatique après quelques minutes sans activité (des employés utilisent le PC) ;
    - données du PC chiffrées (AES-GCM, clé tirée du mot de passe) : illisibles sans le mot de passe.
    ===================================================================== */
-const APP="GESCOUNT",APP_VERSION=8,TABLE="gescount",LSP="gescount.";
+const APP="GESCOUNT",APP_VERSION=9,TABLE="gescount",LSP="gescount.";
 const MOIS=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
 const MC=["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
 const MAGS=[{id:"bredis",nom:"BREDIS"},{id:"clamart",nom:"CLAMART"}];
@@ -668,6 +668,7 @@ function gmMerge(base,mine,theirs,res){const J=JSON.stringify,eq=(a,b)=>J(a)===J
 const EFF_MSG="⚠️ Une case a été tapée en même temps sur un autre poste : elle a été effacée, réécrivez-la.";
 function gmNotice(msg){let n=document.getElementById("gtn");if(!n){n=document.createElement("div");n.id="gtn";n.setAttribute("role","alert");document.body.appendChild(n);n.addEventListener("click",()=>n.remove())}
   n.textContent=msg+"  ✕";clearTimeout(gmNotice.t);gmNotice.t=setTimeout(()=>{const x=document.getElementById("gtn");if(x)x.remove()},10000)}
+const uiSchedule=()=>schedule(); /* v9 : le schedule() de l'écran (le SYNC a son propre schedule(id)) */
 const SYNC=(()=>{
   const st={state:"off",msg:"Synchronisation non réglée",busy:false,timer:null,pend:new Set(),poll:null,started:false};
   const ERR=/Erreur|Accès|Table|connect/;
@@ -684,7 +685,7 @@ const SYNC=(()=>{
     me.base=me.dirty?clone(theirs):null;me.rev=row.rev;
     if(res.n){me.eff=Date.now();me.effSeen=me.eff;gmNotice(EFF_MSG)}
     else{const e=row.data&&row.data.eff;if(e&&e>(me.effSeen||0)){if(me.seenOnce)gmNotice(EFF_MSG);me.effSeen=e}}
-    me.seenOnce=true;saveBlob(id);schedule()}
+    me.seenOnce=true;saveBlob(id);uiSchedule()} /* v9 : redessiner l'écran (fonction globale) ; avant, schedule() appelait par erreur la synchro avec un magasin vide → « Erreur 400 : null value in column id » */
   async function push(id){const me=meta(id);
     for(let essai=0;essai<4;essai++){
       const cnt=me.cnt,doc=clone(STORE[id]),body={data:{app:APP,magasin:id,doc,eff:me.eff||undefined},rev:me.rev+1,updated_at:new Date().toISOString()};

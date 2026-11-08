@@ -1,1 +1,1 @@
-{"version": 8, "note": "Lecture des vrais relevés Banque Populaire et des bulletins Sage"}
+{"version": 9, "note": "Correction : erreur 400 « null value in column id » après une mise à jour venue d un autre poste"}
