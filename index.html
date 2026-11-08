@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>GESCOUNT</title>
 <script>/* version web : réglages Supabase dans config.js (à côté de index.html). Programme PC : fournis par le programme. */if(!window.api)document.write('<script src="config.js"><\/script>')</script>
-<meta name="gc-version" content="9">
+<meta name="gc-version" content="10">
 <style>
 /* Layout (repris de GESTIME) : bandeau blanc [icône + titre + magasin ⌂] [logo] [⚙], rangée de 4 grands onglets verts, sélecteur de période, puis cartes coiffées d'un bandeau rouge. */
 :root{
@@ -510,7 +510,7 @@ details.note summary{cursor:pointer;font-weight:700}
    - verrouillage automatique après quelques minutes sans activité (des employés utilisent le PC) ;
    - données du PC chiffrées (AES-GCM, clé tirée du mot de passe) : illisibles sans le mot de passe.
    ===================================================================== */
-const APP="GESCOUNT",APP_VERSION=9,TABLE="gescount",LSP="gescount.";
+const APP="GESCOUNT",APP_VERSION=10,TABLE="gescount",LSP="gescount.";
 const MOIS=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
 const MC=["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
 const MAGS=[{id:"bredis",nom:"BREDIS"},{id:"clamart",nom:"CLAMART"}];
@@ -1193,7 +1193,15 @@ function dosBandeau(k){const P=dosReg(k);if(!PC||!P||!P.dossier||!P.magasin)retu
 function exportData(){const j=JSON.stringify({app:APP,version:APP_VERSION,exporte:new Date().toISOString(),magasins:Object.fromEntries(MAGS.map(m=>[m.id,STORE[m.id]]))},null,1);
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([j],{type:"application/json"}));a.download="GESCOUNT-"+todayISO()+".json";document.body.appendChild(a);a.click();
   setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);toast("Export enregistré (attention : fichier non chiffré, à garder en lieu sûr)")}
+// v10 : sauvegarde automatique chaque jour (programme PC 1.3.0) : GESCOUNT-AAAA-MM-JJ.json, les deux magasins, CHIFFRÉE avec le compte
+// (comme les données du PC), dans « sauvegardes » du dossier des données ; 60 jours gardés. Réimportable par Importer (une fois connecté).
+async function gcAutoBk(){try{if(!PC||!window.api.autoBackup||!AUTH.key)return;
+  const j=JSON.stringify({app:APP,version:APP_VERSION,exporte:new Date().toISOString(),auto:true,magasins:Object.fromEntries(MAGS.map(m=>[m.id,STORE[m.id]]))});
+  await window.api.autoBackup(await encTxt(AUTH.key,j))}catch(e){}}
+if(PC&&window.api.autoBackup){setTimeout(gcAutoBk,120000);setInterval(gcAutoBk,2*3600e3)}
 async function importText(t){let j;try{j=JSON.parse(t)}catch(e){}
+  if(j&&j.gescount==="chiffre"){if(!AUTH.key){toast("Connectez-vous d'abord pour lire cette sauvegarde.");return}
+    try{j=JSON.parse(await decTxt(AUTH.key,t))}catch(e){toast("Sauvegarde chiffrée illisible avec ce compte (autre compte ou ancien mot de passe).");return}}
   if(!j||j.app!==APP||!j.magasins){toast("Fichier non reconnu : choisissez un export GESCOUNT (.json).");return}
   if(!await askConfirm("Remplacer TOUTES les données de GESCOUNT (BREDIS et CLAMART) par celles de ce fichier ?\nExportez d'abord une sauvegarde si vous n'êtes pas sûr.","Remplacer"))return;
   for(const m of MAGS)if(j.magasins[m.id])change(()=>{STORE[m.id]=norm(j.magasins[m.id])},m.id);
