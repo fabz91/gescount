@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>GESCOUNT</title>
 <script>/* version web : réglages Supabase dans config.js (à côté de index.html). Programme PC : fournis par le programme. */if(!window.api)document.write('<script src="config.js"><\/script>')</script>
-<meta name="gc-version" content="11">
+<meta name="gc-version" content="12">
 <style>
 /* Layout (repris de GESTIME) : bandeau blanc [icône + titre + magasin ⌂] [logo] [⚙], rangée de 4 grands onglets verts, sélecteur de période, puis cartes coiffées d'un bandeau rouge. */
 :root{
@@ -434,6 +434,22 @@ td.lib{white-space:normal;min-width:260px;max-width:520px;text-align:left}
 table.ops td{vertical-align:middle}
 .psel{max-width:190px;font-size:12px;padding:3px 4px}
 .psel.vide{border-color:#f5a524;background:var(--warn-soft)}
+.jdot{width:15px;height:15px;border-radius:50%;border:2px solid transparent;cursor:pointer;display:inline-block;vertical-align:middle;margin-right:8px;padding:0;background:var(--line)}
+.jdot.ok{background:var(--good)}.jdot.part{background:#e39b2d}.jdot.ko{background:var(--bad)}
+.jdot:hover{border-color:var(--fg,#000)}
+td.nowrap{white-space:nowrap}
+.jover{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;justify-content:center;align-items:flex-start;padding:30px 16px;overflow:auto}
+.jbox{background:var(--surface,#fff);color:var(--fg,#18231b);border-radius:12px;max-width:760px;width:100%;padding:16px 18px;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.jtop{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px}.jtop .jdot{cursor:default;margin-top:4px}.jop{flex:1;min-width:0}.jop .small{word-break:break-word}
+.jbox .x,.jbigin .x{border:none;background:none;font-size:18px;cursor:pointer;color:var(--muted)}
+.jcard{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px}
+.jhead{display:flex;justify-content:space-between;gap:10px;margin-bottom:6px}.jm{font-weight:700;white-space:nowrap}
+.jinfo{font-size:13px;line-height:1.5}
+.jpieces{width:100%;font-size:12px;margin:8px 0;border-collapse:collapse}.jpieces td,.jpieces th{padding:2px 6px;border-bottom:1px solid var(--line)}
+.jthumbs{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-top:8px}
+.jth{border:1px solid var(--line);background:#fff;padding:0;cursor:zoom-in;border-radius:4px;line-height:0}
+.jbig{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:210;display:flex;justify-content:center;align-items:flex-start;padding:20px;overflow:auto}
+.jbigin{background:#fff;padding:8px;border-radius:8px;position:relative;line-height:0}.jbigin .x{position:absolute;right:6px;top:6px;line-height:1;background:#fff;border-radius:50%}
 .pt{border:1px dashed var(--line);background:none;color:var(--muted);border-radius:12px;padding:2px 9px;font:600 12px var(--body);cursor:pointer;white-space:nowrap}
 .pt.on{border:1px solid var(--green-2);color:var(--green-2)}
 .pt.auto{border:1px solid var(--line);color:var(--green-2);display:inline-block;cursor:default}
@@ -520,7 +536,7 @@ details.note summary{cursor:pointer;font-weight:700}
    - verrouillage automatique après quelques minutes sans activité (des employés utilisent le PC) ;
    - données du PC chiffrées (AES-GCM, clé tirée du mot de passe) : illisibles sans le mot de passe.
    ===================================================================== */
-const APP="GESCOUNT",APP_VERSION=11,TABLE="gescount",LSP="gescount.";
+const APP="GESCOUNT",APP_VERSION=12,TABLE="gescount",LSP="gescount.";
 const MOIS=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
 const MC=["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
 const MAGS=[{id:"bredis",nom:"BREDIS"},{id:"clamart",nom:"CLAMART"}];
@@ -584,7 +600,7 @@ async function encTxt(key,txt){const iv=crypto.getRandomValues(new Uint8Array(12
 async function decTxt(key,j){const o=JSON.parse(j);if(!o||o.gescount!=="chiffre")throw new Error("format");return td.decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:unb64(o.iv)},key,unb64(o.ct)))}
 
 /* ---------- données ---------- */
-function newD(){return{employes:{},bulletins:{},ops:{},releves:{},conges:{},ca:{},
+function newD(){return{employes:{},bulletins:{},ops:{},releves:{},conges:{},ca:{},justifs:{},
   poles:Object.fromEntries(POLES0.map(([id,nom],i)=>[id,{nom,ordre:i}])),regles:Object.fromEntries([...REGLES0.map(([m,p],i)=>["r"+i,{motif:m,pole:p}]),...REGLES2.map(([m,p],i)=>["r2_"+i,{motif:m,pole:p}])]),reglesV:2}}
 function norm(d){const n=newD(),o=d&&typeof d==="object"?d:{};for(const k of Object.keys(n))if(o[k]&&typeof o[k]==="object"&&!Array.isArray(o[k]))n[k]=o[k];
   if(o.regles){n.reglesV=o.reglesV||1;if(n.reglesV<2){REGLES2.forEach(([m,p],i)=>{if(!Object.values(n.regles).some(x=>nk(x.motif)===nk(m)))n.regles["r2_"+i]={motif:m,pole:p}});n.reglesV=2}}
@@ -652,7 +668,7 @@ let lastAct=Date.now();
 const lockMin=()=>5; // verrouillage automatique : 5 minutes sans activité (décision du 02/11)
 ["mousemove","mousedown","keydown","wheel","touchstart","scroll"].forEach(ev=>document.addEventListener(ev,()=>{lastAct=Date.now()},{passive:true,capture:true}));
 setInterval(()=>{if(!S.locked&&Date.now()-lastAct>lockMin()*60000)lock()},10000);
-function lock(){S.locked=true;S.modal=false;S.modalPanel=null;$("#app").innerHTML="";renderModal();showLock("")}
+function lock(){document.querySelectorAll(".jover,.jbig").forEach(x=>x.remove());S.locked=true;S.modal=false;S.modalPanel=null;$("#app").innerHTML="";renderModal();showLock("")}
 // v11 : bouton « Changer de logiciel » de l'écran de connexion, seulement dans le programme GES (sa pastille ⇄ est posée sur l'icône du bandeau)
 function gesPontMaj(){const b=document.getElementById("gesPont");if(b)b.hidden=!document.querySelector("header.top .ges-sw")}
 [1500,4000,7000].forEach(t=>setTimeout(gesPontMaj,t));
@@ -932,10 +948,11 @@ function vBulImport(){const I=S.bulImport;
 
 /* ---------- BANQUE ---------- */
 function poleOpts(d,sel,vide){return (vide?`<option value="">${esc(vide)}</option>`:"")+polesTri(d).map(p=>`<option value="${p.id}" ${p.id===sel?"selected":""}>${esc(p.nom)}</option>`).join("")}
-function vBanque(){const d=D(),k=curK(),auto=salaireAuto(d);
+function vBanque(){const d=D(),k=curK(),auto=salaireAuto(d),RJ=rappro(d),ej=o=>etatJustif(o,RJ,auto);
   let L=opsMois(d,k).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:(a.n||0)-(b.n||0));
-  const cnt={tout:L.length,nonclassees:L.filter(o=>!o.pole).length,dep:L.filter(o=>o.montant<0).length,rec:L.filter(o=>o.montant>0).length,nonpointees:L.filter(o=>!o.pointe&&!auto[o.id]).length};
-  if(S.opFilt==="nonclassees")L=L.filter(o=>!o.pole);else if(S.opFilt==="dep")L=L.filter(o=>o.montant<0);else if(S.opFilt==="rec")L=L.filter(o=>o.montant>0);else if(S.opFilt==="nonpointees")L=L.filter(o=>!o.pointe&&!auto[o.id]);
+  if(S.opFilt==="nonpointees")S.opFilt="sansjustif";
+  const cnt={tout:L.length,nonclassees:L.filter(o=>!o.pole).length,dep:L.filter(o=>o.montant<0).length,rec:L.filter(o=>o.montant>0).length,sansjustif:L.filter(o=>ej(o)==="ko"||ej(o)==="part").length};
+  if(S.opFilt==="nonclassees")L=L.filter(o=>!o.pole);else if(S.opFilt==="dep")L=L.filter(o=>o.montant<0);else if(S.opFilt==="rec")L=L.filter(o=>o.montant>0);else if(S.opFilt==="sansjustif")L=L.filter(o=>ej(o)==="ko"||ej(o)==="part");
   if(S.opPole)L=L.filter(o=>(o.pole||"")===(S.opPole==="_"?"":S.opPole));
   if(S.opText){const q=nk(S.opText);L=L.filter(o=>nk(o.lib).includes(q)||String(Math.abs(o.montant)).includes(S.opText.replace(",",".")))}
   const R=Object.entries(d.releves).map(([id,r])=>({id,...r})).sort((a,b)=>(a.debut||"")<(b.debut||"")?1:-1);
@@ -945,11 +962,11 @@ function vBanque(){const d=D(),k=curK(),auto=salaireAuto(d);
   ${dosBandeau("releves")}
   ${S.relImport?vRelImport():""}
   <div class="panel flush"><div class="band">Opérations — ${MOIS[S.month]} ${S.year}</div>
-  <div class="opbar"><div class="chips">${[["tout","Toutes"],["nonclassees","Non classées"],["dep","Dépenses"],["rec","Recettes"],["nonpointees","Non pointées"]].map(([v,l])=>`<button class="chip" data-opf="${v}" aria-pressed="${S.opFilt===v}">${l}<span class="c">${cnt[v]}</span></button>`).join("")}</div>
+  <div class="opbar"><div class="chips">${[["tout","Toutes"],["nonclassees","Non classées"],["dep","Dépenses"],["rec","Recettes"],["sansjustif","Sans justificatif"]].map(([v,l])=>`<button class="chip" data-opf="${v}" aria-pressed="${S.opFilt===v}">${l}<span class="c">${cnt[v]}</span></button>`).join("")}</div>
     <select id="opPole" aria-label="Pôle"><option value="">Tous les pôles</option><option value="_" ${S.opPole==="_"?"selected":""}>Non classé</option>${poleOpts(d,S.opPole)}</select><input id="opText" type="search" placeholder="Rechercher (libellé, montant)" value="${esc(S.opText)}"></div>
-  ${L.length?`<div class="scroll"><table class="ops"><thead><tr><th class="l">Date</th><th class="l">Libellé</th><th class="l">Pôle</th><th>Débit</th><th>Crédit</th><th class="l">Pointage</th></tr></thead><tbody>
-    ${L.map(o=>{const a=auto[o.id];return `<tr><td class="l">${frD(o.date)}</td><td class="l lib" title="${esc(o.lib)}">${esc(o.lib)}</td><td class="l"><select class="psel ${o.pole?"":"vide"}" data-oppole="${o.id}">${poleOpts(d,o.pole,"— à classer —")}</select></td><td>${o.montant<0?e2(-o.montant):""}</td><td>${o.montant>0?e2(o.montant):""}</td>
-      <td class="l">${o.pointe?`<button class="pt on" data-pointe="${o.id}" title="Cliquer pour enlever le pointage">✓ ${esc(o.pointe.note||"pointé")}</button>`:a?`<span class="pt auto" title="Reconnu automatiquement : montant = net à payer du bulletin">✓ salaire ${esc(empNom(d.employes[a.emp]))}</span>`:`<button class="pt" data-pointe="${o.id}" title="Marquer comme vérifié (facture, justificatif…)">pointer</button>`}</td></tr>`}).join("")}
+  ${L.length?`<div class="scroll"><table class="ops"><thead><tr><th class="l">Date</th><th class="l">Libellé</th><th class="l">Pôle</th><th>Débit</th><th>Crédit</th><th class="l">Justificatif</th></tr></thead><tbody>
+    ${L.map(o=>{const a=auto[o.id],st=ej(o),rj=RJ[o.id];return `<tr><td class="l">${frD(o.date)}</td><td class="l lib" title="${esc(o.lib)}">${esc(o.lib)}</td><td class="l"><select class="psel ${o.pole?"":"vide"}" data-oppole="${o.id}">${poleOpts(d,o.pole,"— à classer —")}</select></td><td>${o.montant<0?e2(-o.montant):""}</td><td>${o.montant>0?e2(o.montant):""}</td>
+      <td class="l nowrap">${st?`<button class="jdot ${st}" data-justif="${o.id}" title="${st==="ok"?"Justifié"+(rj?" : "+rj.js.map(id=>JT[(d.justifs[id]||{}).t]||"pièce").join(" + "):o.pointe?" (pointé à la main)":a?" (bulletin de paie)":""):st==="part"?"À vérifier"+(rj&&rj.note?" : "+rj.note:""):"Aucun justificatif trouvé"} — cliquer pour voir"></button>`:""}${o.pointe?`<button class="pt on" data-pointe="${o.id}" title="Cliquer pour enlever le pointage">✓ ${esc(o.pointe.note||"pointé")}</button>`:a?`<span class="pt auto" title="Reconnu automatiquement : montant = net à payer du bulletin">✓ salaire ${esc(empNom(d.employes[a.emp]))}</span>`:`<button class="pt" data-pointe="${o.id}" title="Marquer comme vérifié (facture, justificatif…)">pointer</button>`}</td></tr>`}).join("")}
     <tr class="tot"><td class="l" colspan="3">TOTAL (${L.length} opérations)</td><td>${e2(deb)}</td><td>${e2(cre)}</td><td class="l">${e2(cre-deb)}</td></tr>
   </tbody></table></div>`:`<div class="empty-state">${cnt.tout?"Aucune opération avec ce filtre.":`Aucune opération pour ${MOIS[S.month].toLowerCase()} ${S.year}.${dernierMois(D(),"ops")?"<br>"+voirMois(dernierMois(D(),"ops"),"Voir le dernier mois importé : "+kLbl(dernierMois(D(),"ops")).toLowerCase()+" ›"):""}<br><small>Importez les relevés de la Banque Populaire (PDF) : les opérations sont classées par pôle automatiquement.</small>`}</div>`}</div>
   <div class="panel flush" style="margin-top:16px"><div class="band">Relevés importés</div>${R.length?`<div class="scroll"><table><thead><tr><th class="l">Période</th><th class="l">Fichier</th><th>Opérations</th><th>Solde début</th><th>Solde fin</th><th class="l">Contrôle</th><th></th></tr></thead><tbody>
@@ -1038,7 +1055,8 @@ function parseReleve(pages,fichier){
     if(/\bsolde\b/i.test(l.text)&&am.length){const a=am[am.length-1];let v=Math.abs(amt(a.s));if(/d[ée]biteur/i.test(l.text)||(!/cr[ée]diteur/i.test(l.text)&&side(a)<0&&cols))v=-v;
       const dm=/(\d{2})[\/.](\d{2})[\/.](\d{2,4})/.exec(l.text);soldes.push({v,date:dm?y4(dm[3])+"-"+dm[2]+"-"+dm[1]:null});cur=null;if(totaux)fini=true;continue}
     if(/total\s+des\s+(mouvements|op[ée]rations)|^report|^à reporter|^a reporter/i.test(l.text)){if(/total\s+des/i.test(l.text))totaux=true;cur=null;continue}
-    const T=(l.t.length>1&&/^\d{1,4}$/.test(l.t[0].s)&&RE_DATE.test(l.t[1].s))?l.t.slice(1):l.t; // petit numéro dans la marge avant la date (Banque Populaire)
+    let T0=l.t;while(T0.length>1&&/^\d{6,}\*.*\*/.test(T0[0].s))T0=T0.slice(1); // v12 : code-barres de la marge (« 20261030*230535*EXTCL02*… ») sur la même ligne qu'une opération
+    const T=(T0.length>1&&/^\d{1,4}$/.test(T0[0].s)&&RE_DATE.test(T0[1].s))?T0.slice(1):T0; // petit numéro dans la marge avant la date (Banque Populaire)
     const d0=T[0]&&RE_DATE.exec(T[0].s);
     if(d0&&am.length){const a=am[am.length-1];
       const libT=T.slice(1).filter(t=>!am.includes(t)&&!(RE_DATE.test(t.s)&&t!==T[0]));
@@ -1129,16 +1147,18 @@ function saveBul(){const I=S.bulImport;if(!I)return;const R=I.rows.filter(r=>r.o
    Le PC pilote (portable de la comptable : démarrage avec Windows + connexion automatique) lit ces dossiers au démarrage puis
    toutes les 15 min, même verrouillé ou en petite icône, et la synchronisation partage tout avec les autres postes.
    Chaque fichier n'est lu qu'une fois ; ce qui est déjà dans GESCOUNT est ignoré. */
-const LECT_V=2; // à augmenter quand la lecture des PDF change : les fichiers non reconnus sont alors relus
-const DOS={releves:{nom:"relevés bancaires",ic:"🏦",busy:false,msg:"",last:null},bulletins:{nom:"bulletins de paie",ic:"📄",busy:false,msg:"",last:null}};
+const LECT_V=3; // à augmenter quand la lecture des PDF change : les fichiers non reconnus sont alors relus
+const DOS={releves:{nom:"relevés bancaires",ic:"🏦",busy:false,msg:"",last:null},bulletins:{nom:"bulletins de paie",ic:"📄",busy:false,msg:"",last:null},justificatifs:{nom:"justificatifs",ic:"🧾",busy:false,msg:"",last:null}};
 const dosReg=k=>(S.poste&&S.poste[k])||null;
 function dosVus(k){let v={};try{v=JSON.parse(rawLoad("gescount-"+k+"-vus")||"{}")||{}}catch(e){}
   for(const key of Object.keys(v))if(!/^importé/.test(v[key])&&!String(v[key]).endsWith("#"+LECT_V))delete v[key];return v}
 function dosJournal(){try{return JSON.parse(rawLoad("gescount-dossiers-journal")||"[]")||[]}catch(e){return[]}}
 function enregistrerReleve(f,magId){const d=STORE[magId],seen=new Set(opsAll(d).map(o=>o.date+"|"+o.montant+"|"+nk(o.lib)));
   const ops=f.ops.filter(o=>{const k=o.date+"|"+o.montant+"|"+nk(o.lib);if(seen.has(k))return false;seen.add(k);return true});
-  const deja=Object.values(d.releves).some(x=>x.fichier===f.fichier&&x.debut===f.debut&&x.fin===f.fin);
-  if(!ops.length&&deja)return 0;
+  const deja=Object.entries(d.releves).find(([,x])=>x.fichier===f.fichier&&x.debut===f.debut&&x.fin===f.fin);
+  if(!ops.length&&deja){if(deja[1].controle!==(f.controle||null))change(x=>{const r=x.releves[deja[0]];r.controle=f.controle||null;r.ecart=f.ecart??null},magId);return 0}
+  if(deja){change(x=>{const rid=deja[0],r=x.releves[rid];r.n=(r.n||0)+ops.length;r.controle=f.controle||null;r.ecart=f.ecart??null; // v12 : relevé relu (opérations qui manquaient)
+      for(const o of ops)x.ops[uid()]={date:o.date,lib:o.lib,montant:o.montant,pole:classer(x,o.lib),tiers:tiersOp(o),releve:rid,n:o.n}},magId);return ops.length}
   change(x=>{const rid=uid();x.releves[rid]={fichier:f.fichier,debut:f.debut,fin:f.fin,soldeDebut:f.soldeDebut,soldeFin:f.soldeFin,controle:f.controle||null,ecart:f.ecart??null,n:ops.length,importeLe:todayISO(),auto:true};
     for(const o of ops)x.ops[uid()]={date:o.date,lib:o.lib,montant:o.montant,pole:classer(x,o.lib),tiers:tiersOp(o),releve:rid,n:o.n}},magId);
   return ops.length}
@@ -1157,34 +1177,42 @@ async function dosAuto(k){if(!PC||!window.api.dossierLister||!AUTH.key)return;co
   D0.busy=true;D0.msg="Lecture du dossier…";if(S.modal)renderModal();
   try{const L=await window.api.dossierLister(k);
     if(L.err){D0.msg=L.err==="absent"?"⚠️ Dossier introuvable : "+L.root+" (cloud pas encore synchronisé ?)":"Dossier non choisi";return}
-    const vus=dosVus(k),J=dosJournal();let nf=0,nb=0,nlu=0,nrej=0;
-    for(const fl of L.files.sort((a,b)=>a.rel<b.rel?-1:1)){const key=fl.rel+"|"+fl.size+"|"+fl.mtime;if(vus[key])continue;
-      const nom=fl.rel.split("/").pop();nlu++;D0.msg="Lecture… "+nlu+" fichier(s)";if(S.modal&&nlu%5===0)renderModal();
+    const vus=dosVus(k),J=dosJournal();let nf=0,nb=0,nlu=0,nrej=0,nj=0;const lot=[];
+    if(k==="releves"){const bad=new Set(Object.values(STORE[P.magasin].releves).filter(r=>r.auto&&r.controle==="ecart").map(r=>r.fichier)); // v12 : relevés avec un écart relus une fois (lecture corrigée)
+      for(const key of Object.keys(vus))if(/^importé le/.test(vus[key])&&!/reprise/.test(vus[key])&&bad.has(key.split("|")[0].split("/").pop()))vus[key]="reprise";}
+    const flush=()=>{if(lot.length){nj+=enregistrerJustifs(lot.splice(0),P.magasin)}try{rawSave("gescount-"+k+"-vus",JSON.stringify(vus))}catch(e){}};
+    const justif=(pages,nom,rel,key)=>{const j=parseJustif(pages,nom);if(!j)return false;if(P.depuis&&j.date&&j.date.slice(0,7)<P.depuis){vus[key]="avant "+P.depuis+"#"+LECT_V;return true}
+      lot.push({j,dos:k,rel});vus[key]="importé (justificatif) le "+todayISO();if(lot.length>=25)flush();return true};
+    for(const fl of L.files.sort((a,b)=>a.rel<b.rel?-1:1)){const key=fl.rel+"|"+fl.size+"|"+fl.mtime,rep12=vus[key]==="reprise";if(vus[key]&&!rep12)continue;
+      const nom=fl.rel.split("/").pop();nlu++;D0.msg="Lecture… "+nlu+" fichier(s)";if(S.modal&&nlu%5===0)renderModal();if(nlu%50===0)flush();
+      if(k==="justificatifs"&&(!/\.pdf$/i.test(nom)||fl.size>900000)){vus[key]="pas un justificatif#"+LECT_V;continue}
       try{const data=await window.api.dossierLire(k,fl.rel);
-        if(k==="releves"){let r;
-          if(/\.pdf$/i.test(nom))r=parseReleve(await pdfPages(data),nom);
+        if(k==="justificatifs"){if(!justif(await pdfPages(data),nom,fl.rel,key))vus[key]="pas un justificatif#"+LECT_V;continue}
+        if(k==="releves"){let r,pages=null;
+          if(/\.pdf$/i.test(nom)){pages=await pdfPages(data);r=parseReleve(pages,nom)}
           else{let t=new TextDecoder("utf-8").decode(data);if(t.includes("\ufffd"))t=new TextDecoder("windows-1252").decode(data);r=parseCsv(t,nom)}
-          if(!r||!r.ops||!r.ops.length){vus[key]="pas un relevé#"+LECT_V;continue}
+          if(!r||!r.ops||!r.ops.length){if(!(pages&&justif(pages,nom,fl.rel,key)))vus[key]="pas un relevé#"+LECT_V;continue}
           if(P.depuis&&r.fin&&r.fin.slice(0,7)<P.depuis){vus[key]="avant "+P.depuis+"#"+LECT_V;continue}
-          const n=enregistrerReleve(r,P.magasin);nf++;nb+=n;vus[key]="importé le "+todayISO();
+          const n=enregistrerReleve(r,P.magasin);nf++;nb+=n;vus[key]="importé le "+todayISO()+(rep12?" (reprise)":"");
           J.unshift({le:new Date().toISOString(),type:k,fichier:nom,magasin:P.magasin,txt:n+" opération(s)"+(r.controle==="ok"?" ✓":r.controle?" ⚠️ écart "+e2(r.ecart):"")})}
         else{if(!/\.pdf$/i.test(nom)){vus[key]="pas un PDF#"+LECT_V;continue}
           const pages=await pdfPages(data),rows=pages.map((items,i)=>({...parseBulletin(items,STORE[P.magasin]),page:i+1,pages:pages.length})).filter(r=>r.brut!=null||r.net!=null);
-          if(!rows.length){vus[key]="pas un bulletin#"+LECT_V;continue}
+          if(!rows.length){if(!justif(pages,nom,fl.rel,key))vus[key]="pas un bulletin#"+LECT_V;continue}
           if(P.depuis&&rows.every(r=>r.mois&&r.mois<P.depuis)){vus[key]="avant "+P.depuis+"#"+LECT_V;continue}
           const o=enregistrerBulletins(rows.filter(r=>!P.depuis||!r.mois||r.mois>=P.depuis),P.magasin,nom);nf++;nb+=o.n;vus[key]="importé le "+todayISO();
           J.unshift({le:new Date().toISOString(),type:k,fichier:nom,magasin:P.magasin,txt:o.n+" bulletin(s)"+(o.crees?", "+o.crees+" salarié(s) créé(s)":"")+(o.deja?", "+o.deja+" déjà présent(s)":"")+(o.aVoir?", ⚠️ "+o.aVoir+" page(s) à vérifier":"")})}}
       catch(e){console.error(e);vus[key]="illisible#"+LECT_V}}
     if((dosReg(k)||{}).magasin!==P.magasin){D0.again=true;return}
+    flush();
     try{rawSave("gescount-"+k+"-vus",JSON.stringify(vus));rawSave("gescount-dossiers-journal",JSON.stringify(J.slice(0,60)))}catch(e){}
-    nrej=Object.values(vus).filter(v=>!/^importé/.test(v)).length;const nimp=Object.values(vus).filter(v=>/^importé/.test(v)).length;
-    D0.last=new Date();D0.stat={fichiers:L.files.length,imp:nimp,rej:nrej};
-    D0.msg=nf?`✓ ${nb} ${k==="releves"?"opération(s)":"bulletin(s)"} ajouté(s)`:(L.files.length?"✓ Rien de nouveau":"⚠️ Aucun PDF dans ce dossier");
-    if(nrej&&!nimp)D0.msg=`⚠️ ${nrej} fichier(s) lu(s), aucun reconnu : envoyez un exemple à Claude pour régler la lecture`;
-    if(nf&&!S.locked)toast(D0.msg)}
+    nrej=Object.values(vus).filter(v=>!/^importé/.test(v)).length;const nimp=Object.values(vus).filter(v=>/^importé le/.test(v)).length,njus=Object.values(vus).filter(v=>/^importé \(justificatif/.test(v)).length;
+    D0.last=new Date();D0.stat={fichiers:L.files.length,imp:nimp,just:njus,rej:nrej};
+    D0.msg=nf||nj?"✓ "+[nf?nb+" "+(k==="releves"?"opération(s)":"bulletin(s)"):"",nj?nj+" justificatif(s)":""].filter(Boolean).join(", ")+" ajouté(s)":(L.files.length?"✓ Rien de nouveau":"⚠️ Aucun PDF dans ce dossier");
+    if(nrej&&!nimp&&!njus)D0.msg=`⚠️ ${nrej} fichier(s) lu(s), aucun reconnu : envoyez un exemple à Claude pour régler la lecture`;
+    if((nf||nj)&&!S.locked)toast(D0.msg)}
   catch(e){console.error(e);D0.msg="⚠️ Lecture impossible : "+(e.message||e)}
   finally{D0.busy=false;if(S.modal)renderModal();schedule();if(D0.again){D0.again=false;setTimeout(()=>dosAuto(k),50)}}}
-async function autoDossiers(){await dosAuto("releves");await dosAuto("bulletins")}
+async function autoDossiers(){await dosAuto("releves");await dosAuto("bulletins");if(S.justifOk)await dosAuto("justificatifs");await envoiJustifs()}
 setInterval(autoDossiers,15*60000);
 function dosHtml(k){const P=dosReg(k)||{},D0=DOS[k],J=dosJournal().filter(j=>j.type===k).slice(0,6);
   return `<div class="rinfo">GESCOUNT lit ce dossier au démarrage puis toutes les 15 minutes, même verrouillé ou en petite icône, et range chaque nouveau ${k==="releves"?"relevé":"bulletin"} dans le magasin choisi${k==="bulletins"?" (salarié reconnu par son nom, ou créé)":""}. Les fichiers ne sont jamais modifiés.
@@ -1198,9 +1226,151 @@ function dosHtml(k){const P=dosReg(k)||{},D0=DOS[k],J=dosJournal().filter(j=>j.t
   </div>`}
 // v6 : sous le bouton, une seule ligne : dossier choisi, magasin (BREDIS / CLAMART), ✕ pour arrêter. Le clic sur le bouton ouvre directement le choix du dossier.
 function dosLigne(k){const P=dosReg(k);if(!P||!P.dossier)return"";const D0=DOS[k];
-  return `<div class="dosl"><span class="dosp" title="${esc(P.dossier)}">📁 ${esc(P.dossier.split(/[\\/]/).filter(Boolean).slice(-2).join(" › "))}</span>${MAGS.map(m=>`<button class="dosm" data-dosmag="${m.id}" data-k="${k}" aria-pressed="${P.magasin===m.id}">${m.nom}</button>`).join("")}<button class="dosx" data-dosact="lire" data-k="${k}" title="Relire le dossier maintenant" aria-label="Relire">↻</button><button class="dosx" data-dosact="stop" data-k="${k}" title="Arrêter la lecture de ce dossier" aria-label="Arrêter">✕</button></div>${D0.msg||D0.stat?`<div class="small ${/⚠️/.test(D0.msg||"")?"neg":"muted"}" style="margin:-6px 0 10px 4px">${esc(D0.msg||"")}${D0.stat?` · ${D0.stat.fichiers} fichier(s), ${D0.stat.imp} importé(s)${D0.stat.rej?", "+D0.stat.rej+" non reconnu(s)":""}`:""}</div>`:""}`}
+  return `<div class="dosl"><span class="dosp" title="${esc(P.dossier)}">📁 ${esc(P.dossier.split(/[\\/]/).filter(Boolean).slice(-2).join(" › "))}</span>${MAGS.map(m=>`<button class="dosm" data-dosmag="${m.id}" data-k="${k}" aria-pressed="${P.magasin===m.id}">${m.nom}</button>`).join("")}<button class="dosx" data-dosact="lire" data-k="${k}" title="Relire le dossier maintenant" aria-label="Relire">↻</button><button class="dosx" data-dosact="stop" data-k="${k}" title="Arrêter la lecture de ce dossier" aria-label="Arrêter">✕</button></div>${D0.msg||D0.stat?`<div class="small ${/⚠️/.test(D0.msg||"")?"neg":"muted"}" style="margin:-6px 0 10px 4px">${esc(D0.msg||"")}${D0.stat?` · ${D0.stat.fichiers} fichier(s)${k!=="justificatifs"?", "+D0.stat.imp+" importé(s)":""}${D0.stat.just?", "+D0.stat.just+" justificatif(s)":""}${D0.stat.rej?", "+D0.stat.rej+" non reconnu(s)":""}`:""}</div>`:""}`}
 function dosBandeau(k){const P=dosReg(k);if(!PC||!P||!P.dossier||!P.magasin)return"";
   return `<div class="note">🔄 Lecture automatique des ${DOS[k].nom} sur ce PC : <b>${esc(P.dossier)}</b> → ${esc(storeNom(P.magasin))}. ${esc(DOS[k].msg||"")}</div>`}
+
+
+/* ================= v12 : justificatifs et rapprochement bancaire =================
+   Les pièces trouvées dans les dossiers lus (relevés, bulletins, et le dossier des justificatifs de l'année) servent de PREUVES,
+   jamais d'opérations : avis de prélèvement LCR (Banque Populaire), relevés de factures DIAPAR (n° RLC), confirmations de virement Cyber+.
+   Chaque pièce est rangée dans d.justifs (synchronisé) ; le PDF est envoyé chiffré (AES-GCM, clé du compte) dans Supabase Storage
+   (seau « gescount ») pour être ouvert depuis tous les PC. Le rapprochement (opération ↔ pièces) est recalculé à l'affichage. */
+const BUCKET="gescount";
+const JT={lcr:"Avis de prélèvement LCR",diapar:"Relevé de factures DIAPAR",cyber:"Virement Cyber+"};
+function hashStr(s){let h1=0xdeadbeef,h2=0x41c6ce57;for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);h1=Math.imul(h1^c,2654435761);h2=Math.imul(h2^c,1597334677)}
+  h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909);h2=Math.imul(h2^(h2>>>16),2246822507)^Math.imul(h1^(h1>>>13),3266489909);
+  return (h2>>>0).toString(36)+(h1>>>0).toString(36)}
+const isoFr=s=>{const m=String(s||"").match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);return m?y4(m[3])+"-"+m[2].padStart(2,"0")+"-"+m[1].padStart(2,"0"):null};
+function parseJustif(pages,nom){
+  const LL=pages.map(p=>lignes(p)),L=LL.flat().map(l=>l.text),T=L.join("\n");
+  const g=re=>{const m=T.match(re);return m?m[1].trim():""};
+  // 1) confirmation de virement Cyber+ (Banque Populaire)
+  if(/Cyber\+\s*Entreprise/i.test(T)&&/Motifs? du virement|Montant\s/i.test(T)){
+    const m=g(/Montant\s+(\d{1,3}(?:[\s  .]?\d{3})*,\d{2})\s*EUR/i);if(!m)return null;
+    const date=isoFr(g(/Date d'ex[ée]cution\s+(\d{2}\/\d{2}\/\d{4})/i)||g(/Date de validation\s+(\d{2}\/\d{2}\/\d{4})/i)||g(/Date d'enregistrement\s+(\d{2}\/\d{2}\/\d{4})/i)||g(/Date d'ex[ée]cution souhait[ée]e\s+(\d{2}\/\d{2}\/\d{4})/i)||g(/^(\d{2}\/\d{2}\/\d{4})\s/m));
+    if(!date)return null;
+    const benef=g(/Nom \/ Raison sociale\s+([^\n]+)/i).replace(/\s+(IBAN|BIC)\b.*$/,"");
+    const iban=g(/\bIBAN\s+([A-Z]{2}\d{2}(?:\s?[A-Z0-9]){10,32})/).replace(/\s+BIC\b.*$/,"").replace(/\s+/g," ");
+    const motif=g(/Motifs? du virement\s+([^\n]+)/i).replace(/\s+R[ée]f[ée]rence\b.*$/i,"");
+    const statut=g(/Statut\s+(Ex[ée]cut[ée]|En cours[^\n]*?|Rejet[ée]|Annul[ée]|En attente[^\n]*?)(?:\s+Origine|\n|$)/i);
+    return {t:"cyber",date,montant:amt(m),benef,iban,motif,statut,fichier:nom}}
+  // 2) relevé de factures DIAPAR (RLC) : une ligne par pièce, solde = montant de la LCR
+  if(/RELEVE\s+DE\s+FACTURES/i.test(T)&&/RLC\s?\d+/.test(T)){
+    const rlc=(T.match(/RLC\s?(\d{4,})/)||[])[1];let xD=null,xC=null;const pieces=[];
+    for(const l of LL.flat()){if(xC==null&&/\bDEBIT\b/.test(l.text)&&/\bCREDIT\b/.test(l.text)){for(const t of l.t){if(t.s==="DEBIT")xD=t.x+t.w;if(t.s==="CREDIT")xC=t.x+t.w}continue}
+      const m=l.text.match(/^(?:(\d{3,10})\s+)?(\d{2}\/\d{2}\/\d{2,4})\s+(\d{2}\/\d{2}\/\d{2,4})\s+(.*?)\s*(\d+(?:[ .]\d{3})*,\d{2})$/);if(!m)continue;
+      const last=l.t[l.t.length-1],xe=last.x+last.w;const cr=xD!=null&&xC!=null&&Math.abs(xe-xC)<Math.abs(xe-xD);
+      pieces.push([(m[1]||"").replace(/^0+/,""),isoFr(m[2]),m[4].trim(),cr?-amt(m[5]):amt(m[5]),isoFr(m[3])])}
+    const sm=T.match(/Solde\s+(d[ée]biteur|cr[ée]diteur)\s+EUR\s+([\d .]+,\d{2})/i);
+    const montant=sm?amt(sm[2])*(/cr/i.test(sm[1])?-1:1):Math.round(sum(pieces,p=>p[3])*100)/100;
+    const ech=pieces.map(p=>p[4]).filter(Boolean).sort().pop()||null;
+    const date=isoFr(g(/RLC\s?\d+\s+(\d{1,2}\/\d{2}\/\d{2,4})/))||ech;
+    if(!rlc||!montant)return null;
+    return {t:"diapar",rlc,date,ech,montant,pieces:pieces.map(p=>p.slice(0,4)),fichier:nom}}
+  // 3) relevé de lettres de change (avis de prélèvement LCR / relevé de domiciliation)
+  if(/lettres? de change/i.test(T)&&/DATE DE REGLEMENT/i.test(T)){
+    const date=isoFr(g(/DATE DE REGLEMENT\s*:\s*(\d{2}\/\d{2}\/\d{2,4})/i));const effets=[];
+    for(const l of L){const m=l.match(/^(\d{5,9})\s+(.+?)\s+(\d{1,3}(?:[\s  .]?\d{3})*,\d{2})\s+(\d{2}\/\d{2}\/\d{2,4})$/);if(!m)continue;
+      const rl=(m[2].match(/RLC\s?(\d{4,})/)||[])[1]||null;effets.push({tireur:m[2].replace(/\s+\S*\d\S*\s+.*$/,"").trim(),ref:(m[2].match(/(\S*\d\S*)/)||[])[1]||"",rlc:rl,montant:amt(m[3]),ech:isoFr(m[4])})}
+    if(!date||!effets.length)return null;
+    return {t:"lcr",date,montant:Math.round(sum(effets,e=>e.montant)*100)/100,effets,rlcs:effets.map(e=>e.rlc).filter(Boolean),fichier:nom}}
+  return null}
+function justifCle(j){return j.t==="cyber"?["cyber",j.date,j.montant,nk(j.benef),nk(j.motif)].join("|"):j.t==="diapar"?["diapar",j.rlc,j.montant].join("|"):["lcr",j.date,j.montant,(j.rlcs||[]).join(",")||j.effets.map(e=>e.ref).join(",")].join("|")}
+// enregistre un lot de pièces (une seule modification) ; renvoie le nombre de nouvelles
+function enregistrerJustifs(lot,magId){if(!lot.length)return 0;const d=STORE[magId];let n=0;const nouv=[];
+  for(const x of lot){const id="j"+hashStr(justifCle(x.j));if(d.justifs[id]||nouv.some(y=>y.id===id))continue;nouv.push({id,j:{...x.j,dos:x.dos,rel:x.rel,lu:todayISO()}})}
+  if(nouv.length)change(z=>{for(const y of nouv){z.justifs[y.id]=y.j;n++}},magId);return n}
+
+/* ---- Supabase Storage (PDF chiffrés) ---- */
+const JST={msg:"",busy:false,ko:false};
+async function stoReq(method,path,body,again){const c=cfg();if(!c||!AUTH.token)throw new Error("Hors ligne : pas encore connecté au serveur");
+  const h={apikey:c.key,Authorization:"Bearer "+AUTH.token};if(body){h["Content-Type"]="application/octet-stream";h["x-upsert"]="true"}
+  const r=await fetch(c.url+"/storage/v1/object/"+path,{method,headers:h,body});
+  if(r.status===401&&!again&&await refreshSession())return stoReq(method,path,body,true);
+  if(!r.ok){let t="";try{t=await r.text()}catch(_){}const e=new Error(/not.?found|Bucket/i.test(t)&&/bucket/i.test(t)?"Espace des justificatifs absent : lancez le script SQL « supabase-gescount-fichiers.sql » dans Supabase":r.status===403||/row-level|policy|Unauthorized/i.test(t)?"Accès refusé à l'espace des justificatifs (script SQL à lancer dans Supabase)":"Erreur "+r.status+(t?" : "+t.slice(0,120):""));e.status=r.status;throw e}
+  return r}
+async function encBin(u8){const iv=crypto.getRandomValues(new Uint8Array(12));const ct=new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM",iv},AUTH.key,u8));const o=new Uint8Array(12+ct.length);o.set(iv);o.set(ct,12);return o}
+async function decBin(u8){return new Uint8Array(await crypto.subtle.decrypt({name:"AES-GCM",iv:u8.slice(0,12)},AUTH.key,u8.slice(12)))}
+// sur le PC qui lit les dossiers : envoie les PDF des pièces pas encore en ligne (par lots)
+async function envoiJustifs(){if(!PC||!window.api.dossierLire||!AUTH.key||!AUTH.token||JST.busy)return;JST.busy=true;let n=0;
+  try{for(const m of MAGS){const d=STORE[m.id],fait={};
+      for(const [id,j] of Object.entries(d.justifs||{})){if(j.sto||!j.rel||!j.dos)continue;const P=dosReg(j.dos);if(!P||!P.dossier||P.magasin!==m.id)continue;
+        let data;try{data=new Uint8Array(await window.api.dossierLire(j.dos,j.rel))}catch(e){continue}
+        const path=m.id+"/"+id+".bin";await stoReq("POST",BUCKET+"/"+path,await encBin(data));fait[id]=path;n++;
+        if(Object.keys(fait).length>=20){const F=fait;change(z=>{for(const k of Object.keys(F))if(z.justifs[k])z.justifs[k].sto=F[k]},m.id);for(const k of Object.keys(F))delete fait[k]}}
+      if(Object.keys(fait).length)change(z=>{for(const k of Object.keys(fait))if(z.justifs[k])z.justifs[k].sto=fait[k]},m.id)}
+    JST.ko=false;JST.msg=n?n+" justificatif(s) mis en ligne":JST.msg}
+  catch(e){console.error(e);JST.ko=true;JST.msg="⚠️ "+(e.message||e)}
+  finally{JST.busy=false;if(n)schedule()}}
+const JB={get:(m,i)=>justifBytes(m,i)}; // (remplaçable pour les tests)
+async function justifBytes(mag,id){const j=STORE[mag].justifs[id];if(!j)throw new Error("Pièce introuvable");
+  const P=dosReg(j.dos);if(PC&&window.api.dossierLire&&j.rel&&P&&P.dossier&&P.magasin===mag){try{return new Uint8Array(await window.api.dossierLire(j.dos,j.rel))}catch(e){}}
+  if(!j.sto)throw new Error("Le PDF n'est pas encore en ligne : il le sera dès que le portable de la comptable l'aura envoyé.");
+  const r=await stoReq("GET","authenticated/"+BUCKET+"/"+j.sto);return decBin(new Uint8Array(await r.arrayBuffer()))}
+
+/* ---- rapprochement : opération (débit) ↔ pièces ---- */
+const cts=v=>Math.round(Math.abs(+v||0)*100);
+function rappro(d){const J=Object.entries(d.justifs||{}).map(([id,j])=>({id,...j})),res={},used=new Set();
+  const byC={},rel={};for(const j of J){if(j.t==="diapar"){if(j.rlc&&(!rel[j.rlc]||j.lu>rel[j.rlc].lu))rel[j.rlc]=j}else(byC[cts(j.montant)]=byC[cts(j.montant)]||[]).push(j)}
+  const ops=opsAll(d).filter(o=>o.montant<0).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
+  const isLcr=o=>/\bLCR\b/.test(nk(o.lib)),isPrlv=o=>/\bPRLV\b|\bPRELEVEMENT\b/.test(nk(o.lib));
+  const typeOk=(o,j)=>j.t==="lcr"?isLcr(o):!isLcr(o)&&!isPrlv(o);
+  const ecart=(o,j)=>daysBetween(j.date,o.date),dans=(o,j,large)=>{const e=ecart(o,j);return large?e>=-10&&e<=30:j.t==="lcr"?e>=-2&&e<=4:e>=-3&&e<=7};
+  const prendre=(o,large)=>{const c=(byC[cts(o.montant)]||[]).filter(j=>!used.has(j.id)&&j.date&&typeOk(o,j)&&dans(o,j,large)).sort((a,b)=>Math.abs(ecart(o,a))-Math.abs(ecart(o,b)));return c[0]||null};
+  // 1) montant exact et date proche
+  for(const o of ops){const j=prendre(o,false);if(j){used.add(j.id);res[o.id]={st:"ok",js:[j.id]}}}
+  // 2) prélèvement LCR = plusieurs avis réglés le même jour
+  const avis=J.filter(j=>j.t==="lcr");
+  for(const o of ops){if(res[o.id]||!isLcr(o))continue;const c=avis.filter(j=>!used.has(j.id)&&dans(o,j,false));let ok=null;
+    for(let a=0;a<c.length&&!ok;a++)for(let b=a+1;b<c.length&&!ok;b++){if(cts(c[a].montant)+cts(c[b].montant)===cts(o.montant))ok=[c[a],c[b]]}
+    if(ok){ok.forEach(j=>used.add(j.id));res[o.id]={st:"ok",js:ok.map(j=>j.id)}}}
+  // 3) LCR sans avis : relevé de factures DIAPAR du même montant, échéance proche
+  const relUsed=new Set();
+  for(const o of ops){if(res[o.id]||!isLcr(o))continue;const r=Object.values(rel).find(r=>!relUsed.has(r.id)&&cts(r.montant)===cts(o.montant)&&r.ech&&Math.abs(daysBetween(r.ech,o.date))<=4);
+    if(r){relUsed.add(r.id);res[o.id]={st:"ok",js:[r.id]}}}
+  // 4) même montant mais date éloignée : à vérifier
+  for(const o of ops){if(res[o.id])continue;const j=prendre(o,true);if(j){used.add(j.id);res[o.id]={st:"part",js:[j.id],note:"date éloignée ("+frDate(j.date)+")"}}}
+  // relevés de factures DIAPAR rattachés aux avis LCR (même n° RLC)
+  for(const r of Object.values(res)){const add=[];for(const id of r.js){const j=d.justifs[id];if(j&&j.t==="lcr")for(const n of j.rlcs||[]){if(rel[n]&&!r.js.includes(rel[n].id)&&!add.includes(rel[n].id))add.push(rel[n].id)}}
+    if(add.length){r.js.push(...add);const tl=sum(r.js.map(id=>d.justifs[id]).filter(j=>j.t==="lcr"),j=>j.montant),tr=sum(add.map(id=>d.justifs[id]),j=>j.montant);
+      if(cts(tl)!==cts(tr)&&r.st==="ok"){r.st="part";r.note="total des factures DIAPAR ("+e2(tr)+") ≠ prélèvement"}}}
+  return res}
+// état d'une opération : ok (vert), part (orange), ko (rouge), "" (recette : pas de pastille)
+function etatJustif(o,R,auto){if(o.montant>=0)return"";if(o.pointe||auto[o.id])return"ok";const r=R[o.id];return r?r.st:"ko"}
+
+/* ---- fenêtre des justificatifs d'une opération ---- */
+async function pdfDoc(u8){const lib=await pdfLib();return lib.getDocument({data:u8.slice(),isEvalSupported:false,verbosity:0}).promise}
+async function pageCanvas(doc,i,width){const pg=await doc.getPage(i),v0=pg.getViewport({scale:1}),dpr=window.devicePixelRatio||1,v=pg.getViewport({scale:width/v0.width*dpr});
+  const c=document.createElement("canvas");c.width=Math.round(v.width);c.height=Math.round(v.height);c.style.width=width+"px";c.style.height=Math.round(v.height/dpr)+"px";
+  await pg.render({canvasContext:c.getContext("2d"),viewport:v}).promise;return c}
+function justifCarte(j,id){const L=[];
+  if(j.t==="cyber"){if(j.benef)L.push(["Bénéficiaire",j.benef]);if(j.motif)L.push(["Motif",j.motif]);L.push(["Exécuté le",frDate(j.date)])}
+  else if(j.t==="lcr"){L.push(["Réglé le",frDate(j.date)]);for(const e of j.effets||[])L.push([e.tireur||"Effet",(e.ref||"")+" · "+e2(e.montant)])}
+  else if(j.t==="diapar"){L.push(["N° RLC",j.rlc]);if(j.date)L.push(["Relevé du",frDate(j.date)]);if(j.ech)L.push(["Échéance",frDate(j.ech)])}
+  return `<div class="jcard"><div class="jhead"><b>${esc(JT[j.t]||"Pièce")}</b><span class="jm">${e2(j.montant)}</span></div>
+    <div class="jinfo">${L.map(([a,b])=>`<div><span class="muted">${esc(a)} :</span> ${esc(b)}</div>`).join("")}<div class="small muted" title="${esc(j.rel||"")}">📄 ${esc(j.fichier||"")}</div></div>
+    ${j.t==="diapar"&&j.pieces&&j.pieces.length?`<table class="jpieces"><thead><tr><th class="l">Pièce</th><th class="l">Date</th><th class="l">Libellé</th><th>Montant</th></tr></thead><tbody>${j.pieces.map(p=>`<tr><td class="l">${esc(p[0])}</td><td class="l">${frD(p[1])}</td><td class="l">${esc(p[2])}</td><td class="${p[3]<0?"pos":""}">${e2(p[3])}</td></tr>`).join("")}</tbody></table>`:""}
+    <div class="jthumbs" data-jth="${id}"><span class="small muted">Chargement du PDF…</span></div></div>`}
+async function ouvrirJustifs(opId){const d=D(),mag=S.store,o=d.ops[opId];if(!o)return;const R=rappro(d),auto=salaireAuto(d),r=R[opId],a=auto[opId];
+  const ov=document.createElement("div");ov.className="jover";ov.id="jover";
+  const cartes=[];if(o.pointe)cartes.push(`<div class="jcard"><div class="jhead"><b>Pointé à la main</b></div><div class="jinfo">le ${frDate(o.pointe.le)}${o.pointe.note?" · "+esc(o.pointe.note):""}</div></div>`);
+  if(a)cartes.push(`<div class="jcard"><div class="jhead"><b>Bulletin de paie</b><span class="jm">${e2(a.net)}</span></div><div class="jinfo">Net à payer de ${esc(empNom(d.employes[a.emp]))} (${esc(kLbl(a.mois).toLowerCase())}) = montant du virement.</div></div>`);
+  if(r)for(const id of r.js){const j=d.justifs[id];if(j)cartes.push(justifCarte(j,id))}
+  const etat=etatJustif({...o,id:opId},R,auto);
+  ov.innerHTML=`<div class="jbox" role="dialog" aria-label="Justificatifs"><div class="jtop"><span class="jdot ${etat}"></span><div class="jop"><b>${frDate(o.date)} · ${e2(o.montant)}</b><div class="small muted">${esc(o.lib)}</div></div><button class="x" data-jclose="1" aria-label="Fermer">✕</button></div>
+    ${r&&r.note?`<div class="note" style="margin:0 0 10px">À vérifier : ${esc(r.note)}</div>`:""}
+    ${cartes.length?cartes.join(""):`<div class="empty-state small">Aucun justificatif trouvé pour cette opération.<br><small>GESCOUNT cherche les avis LCR, les relevés de factures DIAPAR et les virements Cyber+ (même montant, date proche) dans les dossiers lus par le portable de la comptable. Vous pouvez aussi la « pointer » à la main.</small></div>`}</div>`;
+  ov.addEventListener("click",e=>{if(e.target===ov||e.target.closest("[data-jclose]"))ov.remove()});
+  document.getElementById("jover")?.remove();document.body.appendChild(ov);
+  if(r)for(const id of r.js){const box=ov.querySelector(`[data-jth="${id}"]`);if(!box)continue;
+    (async()=>{try{const u8=await JB.get(mag,id),doc=await pdfDoc(u8);box.innerHTML="";
+        for(let i=1;i<=Math.min(doc.numPages,4);i++){const c=await pageCanvas(doc,i,150);const b=document.createElement("button");b.className="jth";b.title="Agrandir la page "+i;b.appendChild(c);
+          b.addEventListener("click",async()=>{const big=document.createElement("div");big.className="jbig";big.innerHTML=`<div class="jbigin"><button class="x" aria-label="Fermer">✕</button></div>`;
+            big.addEventListener("click",e=>{if(e.target===big||e.target.closest(".x"))big.remove()});document.body.appendChild(big);
+            try{big.querySelector(".jbigin").appendChild(await pageCanvas(doc,i,Math.min(860,innerWidth-60)))}catch(e){}});box.appendChild(b)}
+        const j=d.justifs[id],P=dosReg(j.dos);if(PC&&j.rel&&P&&P.magasin===mag&&window.api.dossierOuvrir){const b=document.createElement("button");b.className="btn small";b.textContent="Ouvrir le PDF";b.addEventListener("click",()=>window.api.dossierOuvrir(j.dos,j.rel).catch(()=>toast("Fichier introuvable")));box.appendChild(b)}}
+      catch(e){box.innerHTML=`<span class="small neg">${esc(e.message||e)}</span>`}})()}}
 
 /* ================= export / import ================= */
 function exportData(){const j=JSON.stringify({app:APP,version:APP_VERSION,exporte:new Date().toISOString(),magasins:Object.fromEntries(MAGS.map(m=>[m.id,STORE[m.id]]))},null,1);
@@ -1257,7 +1427,9 @@ function renderModal(){const root=$("#modalRoot");if(!S.modal||S.locked){root.in
     <button class="rbtn" data-dosact="choisir" data-k="releves" style="margin-top:10px"><span class="ic">🏦</span>Dossier des relevés bancaires</button>
     ${dosLigne("releves")}
     <button class="rbtn" data-dosact="choisir" data-k="bulletins"><span class="ic">📄</span>Dossier des bulletins de paie</button>
-    ${dosLigne("bulletins")}`:""}
+    ${dosLigne("bulletins")}
+    ${S.justifOk?`<button class="rbtn" data-dosact="choisir" data-k="justificatifs"><span class="ic">🧾</span>Dossier des justificatifs (l'année, ex. Documents › 2026)</button>
+    ${dosLigne("justificatifs")}${JST.msg?`<div class="small ${JST.ko?"neg":"muted"}" style="margin:-6px 0 10px 4px">${esc(JST.msg)}</div>`:""}`:`<div class="small muted" style="margin:4px 0 10px 4px">🧾 Dossier des justificatifs : installez le kit GES 1.0.7 sur ce PC pour l'activer.</div>`}`:""}
     <h4>Données</h4>
     <button class="rbtn" data-act="export"><span class="ic">💾</span>Exporter</button>
     <button class="rbtn" data-act="import"><span class="ic">📂</span>Importer</button><input type="file" id="importFile" accept="application/json,.json" hidden>
@@ -1308,6 +1480,7 @@ document.addEventListener("click",async e=>{
   if(ds.editbul){S.editBul={id:ds.editbul,...d.bulletins[ds.editbul]};if(S.tab!=="sal"&&S.tab!=="emp")S.tab="sal";render();scrollTo(0,0);return}
   if(ds.delbul){const id=ds.delbul;if(!await askConfirm("Supprimer ce bulletin ?","Supprimer"))return;change(x=>{delete x.bulletins[id]});S.editBul=null;render();return}
   if(ds.opf){S.opFilt=ds.opf;render();return}
+  if(ds.justif){ouvrirJustifs(ds.justif);return}
   if(ds.pointe){const id=ds.pointe;change(x=>{const o=x.ops[id];if(o.pointe)delete o.pointe;else o.pointe={le:todayISO()}});return}
   if(ds.delrel){const id=ds.delrel,r=d.releves[id];if(!await askConfirm(`Supprimer le relevé ${frDate(r.debut)} → ${frDate(r.fin)} et ses ${r.n||0} opérations ?`,"Supprimer"))return;
     change(x=>{delete x.releves[id];for(const[k,o]of Object.entries(x.ops))if(o.releve===id)delete x.ops[k]});return}
@@ -1365,7 +1538,7 @@ document.addEventListener("submit",e=>{const f=e.target;if(!f.closest("#app"))re
     const b={emp,mois};for(const[k]of BUL_F){const v=parseNum($("#bu-"+k).value);if(Number.isNaN(v)){toast("Valeur non reconnue : "+k);return}if(v!=null)b[k]=v}
     const id=S.editBul.id||(Object.entries(D().bulletins).find(([,x])=>x.emp===emp&&x.mois===mois)||[uid()])[0];change(x=>{x.bulletins[id]={...(x.bulletins[id]&&x.bulletins[id].source?{source:x.bulletins[id].source}:{}),...b}});S.editBul=null;toast("Bulletin enregistré");return}
 });
-document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeMenu();if(S.modal){S.modal=false;render()}}
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){const jb=document.querySelector(".jbig")||document.getElementById("jover");if(jb){jb.remove();return}closeMenu();if(S.modal){S.modal=false;render()}}
   if(!(e.ctrlKey||e.metaKey)||S.locked)return;const k=e.key.toLowerCase();if(k==="l"){e.preventDefault();lock();return}
   const a=document.activeElement;if(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))return;
   if(k==="z"&&!e.shiftKey){e.preventDefault();undo()}else if(k==="y"||(k==="z"&&e.shiftKey)){e.preventDefault();redo()}});
@@ -1388,9 +1561,10 @@ if(PC&&window.api.updateCheck){let last=0;const auto=()=>{if(Date.now()-last<600
       if(r.status==="new"){await Promise.all(Object.values(SAVEQ));await new Promise(f=>setTimeout(f,2000));const x=await window.api.updateApply(majUrl());if(x.status==="done")return;soir=true}}catch(e){soir=true}
     S.majBusy=false};
   setInterval(()=>{const n=new Date(),dd=n.toDateString();if(n.getHours()>=H&&fait!==dd){fait=dd;soir=true}if(soir)soirGo()},60000)}
-window.GESCOUNT={sync:SYNC,store:STORE,S,parseReleve,parseBulletin,parseCsv,lignes,render,tiers,classer}; // pour le diagnostic et les tests
+window.GESCOUNT={sync:SYNC,store:STORE,S,parseReleve,parseBulletin,parseCsv,lignes,render,tiers,classer,parseJustif,rappro,enregistrerJustifs,ouvrirJustifs,envoiJustifs,norm,pdfPages,enregistrerReleve,opsAll,salaireAuto,etatJustif,change,JB,hideLock}; // pour le diagnostic et les tests
 showLock("");render();
 if(PC&&window.api.posteGet)(async()=>{try{S.poste=await window.api.posteGet()}catch(e){S.poste=null}
+  try{if(window.api.dossierLister){await window.api.dossierLister("justificatifs");S.justifOk=true}}catch(e){S.justifOk=false}
   if(window.api.onLock)window.api.onLock(()=>{if(!S.locked)lock()});
   if(S.poste&&S.poste.connexionAuto){const c=await window.api.connexionAutoGet().catch(()=>null);
     if(!c){showLock("Connexion automatique impossible sur ce PC : tapez le mot de passe.");return}

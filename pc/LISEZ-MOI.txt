@@ -78,6 +78,18 @@ GESCOUNT EN FOND (version 3 et plus, nécessite ce kit)
   C'est ce PC pilote qui remplit GESCOUNT pour tout le monde.
 
 
+JUSTIFICATIFS ET RAPPROCHEMENT BANCAIRE (version 12)
+  Dans BANQUE, chaque dépense a une pastille : verte = justifiée, orange = à vérifier,
+  rouge = aucun justificatif. Un clic ouvre les pièces (PDF en petites fiches, clic = agrandir).
+  Pièces reconnues : avis de prélèvement LCR, relevés de factures DIAPAR (n° RLC),
+  confirmations de virement Cyber+. Elles servent de preuves, jamais d'opérations en plus.
+  Elles sont lues dans les dossiers des relevés et des bulletins, et dans le « Dossier des
+  justificatifs » (Ce PC, kit GES 1.0.7 ou plus) : choisir le dossier de l'année du cloud
+  (par exemple Documents\2026).
+  Les PDF sont envoyés CHIFFRÉS dans Supabase pour être ouverts depuis tous les PC :
+  lancer une fois supabase-gescount-fichiers.sql dans Supabase > SQL Editor.
+
+
 MISE À JOUR SANS RÉINSTALLER
   Réglages > Mettre à jour le logiciel, ou tout seul chaque soir à 21 h, depuis
   https://github.com/fabz91/gescount. Les données ne sont pas touchées.

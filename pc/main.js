@@ -135,7 +135,7 @@ ipcMain.handle('gc:connexionAutoGet', async () => {
 });
 // Dossiers lus automatiquement (v4) : « releves » (relevés bancaires) et « bulletins » (bulletins de paie),
 // par exemple dans le cloud de la comptable. Lecture seule : rien n'est modifié ni déplacé.
-const KINDS = { releves: 'Choisir le dossier des relevés bancaires', bulletins: 'Choisir le dossier des bulletins de paie' };
+const KINDS = { releves: 'Choisir le dossier des relevés bancaires', bulletins: 'Choisir le dossier des bulletins de paie', justificatifs: 'Choisir le dossier des justificatifs (l\'année, par exemple Documents\\2026)' };
 const kindOk = (k) => { if (!KINDS[k]) throw new Error('Dossier inconnu'); return k; };
 function dosSafe(kind, rel) {
   const root = (poste()[kindOk(kind)] || {}).dossier; if (!root) throw new Error('Dossier non choisi');
