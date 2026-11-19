@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>GESCOUNT</title>
 <script>/* version web : réglages Supabase dans config.js (à côté de index.html). Programme PC : fournis par le programme. */if(!window.api)document.write('<script src="config.js"><\/script>')</script>
-<meta name="gc-version" content="12">
+<meta name="gc-version" content="13">
 <style>
 /* Layout (repris de GESTIME) : bandeau blanc [icône + titre + magasin ⌂] [logo] [⚙], rangée de 4 grands onglets verts, sélecteur de période, puis cartes coiffées d'un bandeau rouge. */
 :root{
@@ -536,7 +536,7 @@ details.note summary{cursor:pointer;font-weight:700}
    - verrouillage automatique après quelques minutes sans activité (des employés utilisent le PC) ;
    - données du PC chiffrées (AES-GCM, clé tirée du mot de passe) : illisibles sans le mot de passe.
    ===================================================================== */
-const APP="GESCOUNT",APP_VERSION=12,TABLE="gescount",LSP="gescount.";
+const APP="GESCOUNT",APP_VERSION=13,TABLE="gescount",LSP="gescount.";
 const MOIS=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
 const MC=["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
 const MAGS=[{id:"bredis",nom:"BREDIS"},{id:"clamart",nom:"CLAMART"}];
@@ -1162,15 +1162,19 @@ function enregistrerReleve(f,magId){const d=STORE[magId],seen=new Set(opsAll(d).
   change(x=>{const rid=uid();x.releves[rid]={fichier:f.fichier,debut:f.debut,fin:f.fin,soldeDebut:f.soldeDebut,soldeFin:f.soldeFin,controle:f.controle||null,ecart:f.ecart??null,n:ops.length,importeLe:todayISO(),auto:true};
     for(const o of ops)x.ops[uid()]={date:o.date,lib:o.lib,montant:o.montant,pole:classer(x,o.lib),tiers:tiersOp(o),releve:rid,n:o.n}},magId);
   return ops.length}
-// Bulletins : salarié reconnu par son nom (sinon créé), mois lu sur la page ; un bulletin déjà présent (même salarié, même mois) n'est pas remplacé.
-function enregistrerBulletins(rows,magId,fichier){const d=STORE[magId],out={n:0,crees:0,deja:0,aVoir:0};const crees={};
+// Bulletins : salarié reconnu par son nom (sinon créé), mois lu sur la page ; un bulletin déjà présent (même salarié, même mois) n'est pas remplacé,
+// sauf par un bulletin corrigé (v13) : « … BS V2.pdf » (version lue dans le nom du fichier, 1 par défaut) remplace une version plus petite, jamais l'inverse.
+const bulVer=f=>{const m=/(?:^|[\s_-])v(\d{1,2})(?=[\s_.-]|$)/i.exec(String(f||"").replace(/\.pdf$/i,""));return m?+m[1]:1};
+function enregistrerBulletins(rows,magId,fichier){const d=STORE[magId],out={n:0,crees:0,deja:0,aVoir:0,corr:0};const crees={},ver=bulVer(fichier);
   const ok=rows.filter(r=>(r.brut!=null||r.net!=null)&&r.mois);out.aVoir=rows.length-ok.length;if(!ok.length)return out;
   change(x=>{for(const r of ok){let emp=r.emp&&x.employes[r.emp]?r.emp:null;
       if(!emp&&r.nomLu){const key=nk(r.nomLu);emp=crees[key]||Object.entries(x.employes).find(([,e])=>nk(empNom(e))===key)?.[0];
         if(!emp){const w=r.nomLu.split(" ");emp=crees[key]=uid();x.employes[emp]={nom:(w[0]||"").toUpperCase(),prenom:w.slice(1).join(" "),contrat:/APPRENTI/i.test(r.poste||"")?"Apprentissage":"CDI",actif:true,...(r.poste?{poste:r.poste}:{}),...(r.entree?{entree:r.entree}:{})};out.crees++}}
       if(!emp){out.aVoir++;continue}
-      if(Object.values(x.bulletins).some(b=>b.emp===emp&&b.mois===r.mois)){out.deja++;continue}
-      const b={emp,mois:r.mois,source:fichier+(r.pages>1?" p."+r.page:""),auto:true};BUL_F.forEach(([k])=>{if(r[k]!=null&&r[k]!=="")b[k]=r[k]});x.bulletins[uid()]=b;out.n++}},magId);
+      const old=Object.entries(x.bulletins).find(([,b])=>b.emp===emp&&b.mois===r.mois);
+      if(old&&(old[1].ver||1)>=ver){out.deja++;continue}
+      const b={emp,mois:r.mois,source:fichier+(r.pages>1?" p."+r.page:""),auto:true,...(ver>1?{ver}:{})};BUL_F.forEach(([k])=>{if(r[k]!=null&&r[k]!=="")b[k]=r[k]});
+      if(old){x.bulletins[old[0]]=b;out.corr++}else x.bulletins[uid()]=b;out.n++}},magId);
   return out}
 async function dosAuto(k){if(!PC||!window.api.dossierLister||!AUTH.key)return;const D0=DOS[k];if(D0.busy){D0.again=true;return} // une lecture est en cours : on relira juste après
   const P=dosReg(k);if(!P||!P.dossier||!P.magasin)return;
@@ -1178,6 +1182,7 @@ async function dosAuto(k){if(!PC||!window.api.dossierLister||!AUTH.key)return;co
   try{const L=await window.api.dossierLister(k);
     if(L.err){D0.msg=L.err==="absent"?"⚠️ Dossier introuvable : "+L.root+" (cloud pas encore synchronisé ?)":"Dossier non choisi";return}
     const vus=dosVus(k),J=dosJournal();let nf=0,nb=0,nlu=0,nrej=0,nj=0;const lot=[];
+    if(k==="bulletins")for(const key of Object.keys(vus))if(bulVer(key.split("|")[0].split("/").pop())>1&&!/\(version\)|reprise/.test(vus[key]))vus[key]="reprise"; // v13 : bulletins « V2 » lus avant la correction
     if(k==="releves"){const bad=new Set(Object.values(STORE[P.magasin].releves).filter(r=>r.auto&&r.controle==="ecart").map(r=>r.fichier)); // v12 : relevés avec un écart relus une fois (lecture corrigée)
       for(const key of Object.keys(vus))if(/^importé le/.test(vus[key])&&!/reprise/.test(vus[key])&&bad.has(key.split("|")[0].split("/").pop()))vus[key]="reprise";}
     const flush=()=>{if(lot.length){nj+=enregistrerJustifs(lot.splice(0),P.magasin)}try{rawSave("gescount-"+k+"-vus",JSON.stringify(vus))}catch(e){}};
@@ -1199,8 +1204,8 @@ async function dosAuto(k){if(!PC||!window.api.dossierLister||!AUTH.key)return;co
           const pages=await pdfPages(data),rows=pages.map((items,i)=>({...parseBulletin(items,STORE[P.magasin]),page:i+1,pages:pages.length})).filter(r=>r.brut!=null||r.net!=null);
           if(!rows.length){if(!justif(pages,nom,fl.rel,key))vus[key]="pas un bulletin#"+LECT_V;continue}
           if(P.depuis&&rows.every(r=>r.mois&&r.mois<P.depuis)){vus[key]="avant "+P.depuis+"#"+LECT_V;continue}
-          const o=enregistrerBulletins(rows.filter(r=>!P.depuis||!r.mois||r.mois>=P.depuis),P.magasin,nom);nf++;nb+=o.n;vus[key]="importé le "+todayISO();
-          J.unshift({le:new Date().toISOString(),type:k,fichier:nom,magasin:P.magasin,txt:o.n+" bulletin(s)"+(o.crees?", "+o.crees+" salarié(s) créé(s)":"")+(o.deja?", "+o.deja+" déjà présent(s)":"")+(o.aVoir?", ⚠️ "+o.aVoir+" page(s) à vérifier":"")})}}
+          const o=enregistrerBulletins(rows.filter(r=>!P.depuis||!r.mois||r.mois>=P.depuis),P.magasin,nom);nf++;nb+=o.n;vus[key]="importé le "+todayISO()+(bulVer(nom)>1?" (version)":"");
+          J.unshift({le:new Date().toISOString(),type:k,fichier:nom,magasin:P.magasin,txt:o.n+" bulletin(s)"+(o.crees?", "+o.crees+" salarié(s) créé(s)":"")+(o.corr?", "+o.corr+" corrigé(s) (V"+bulVer(nom)+")":"")+(o.deja?", "+o.deja+" déjà présent(s)":"")+(o.aVoir?", ⚠️ "+o.aVoir+" page(s) à vérifier":"")})}}
       catch(e){console.error(e);vus[key]="illisible#"+LECT_V}}
     if((dosReg(k)||{}).magasin!==P.magasin){D0.again=true;return}
     flush();
