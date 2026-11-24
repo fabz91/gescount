@@ -536,7 +536,7 @@ details.note summary{cursor:pointer;font-weight:700}
    - verrouillage automatique après quelques minutes sans activité (des employés utilisent le PC) ;
    - données du PC chiffrées (AES-GCM, clé tirée du mot de passe) : illisibles sans le mot de passe.
    ===================================================================== */
-const APP="GESCOUNT",APP_VERSION=13,TABLE="gescount",LSP="gescount.";
+const APP="GESCOUNT",APP_VERSION=14,TABLE="gescount",LSP="gescount.";
 const MOIS=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
 const MC=["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
 const MAGS=[{id:"bredis",nom:"BREDIS"},{id:"clamart",nom:"CLAMART"}];
@@ -1580,5 +1580,8 @@ if(PC&&window.api.posteGet)(async()=>{try{S.poste=await window.api.posteGet()}ca
 })();
 
 </script>
+<style id="ges-nobarre">html.ges-ico body>div[style*="2147483645"]{display:none!important}</style>
+<script>/* 24/11/2026 : pas de bandeau GES « Changer de logiciel » quand on fait défiler la page ; on change de logiciel par l'icône du titre. Le bandeau reste seulement sur une page sans icône (écran de connexion). */
+(function(){var q='header.top .appico, .top .brand .bi, header .brand .bi';function f(){var h=false;try{document.querySelectorAll(q).forEach(function(i){var r=i.getBoundingClientRect();if(r.width>=4&&r.height>=4)h=true;});}catch(e){}document.documentElement.classList.toggle('ges-ico',h);}document.addEventListener('scroll',f,true);addEventListener('resize',f);setInterval(f,400);f();})();</script>
 </body>
 </html>
